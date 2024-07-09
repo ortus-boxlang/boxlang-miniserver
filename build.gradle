@@ -32,6 +32,13 @@ ext {
 	branch = System.getenv( 'BRANCH' ) ?: 'development'
 }
 
+if (branch == 'development') {
+    // If the branch is 'development', ensure the version ends with '-snapshot'
+    // This replaces any existing prerelease identifier with '-snapshot'
+    version = version.contains('-') ? version.replaceAll(/-.*/, '-snapshot') : "${version}-snapshot"
+	boxlangVersion = boxlangVersion.contains('-') ? boxlangVersion.replaceAll(/-.*/, '-snapshot') : "${boxlangVersion}-snapshot"
+}
+
 repositories {
     mavenLocal()
     mavenCentral()
@@ -40,7 +47,7 @@ repositories {
 dependencies {
 	// LOCAL DEVELOPMENT ONLY
 	// CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
-    implementation files( '../boxlang/build/distributions/boxlang-' + boxlangVersion + '-all.jar' )
+    implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '-all.jar' )
 	implementation files( '../boxlang-web-support/build/distributions/boxlang-web-support-' + boxlangVersion + '.jar' )
 
 	// Downloaded Dependencies
@@ -87,11 +94,7 @@ jar {
  	manifest {
 		attributes 'Main-Class': 'ortus.boxlang.web.MiniServer'
 	   	attributes 'Description': 'The BoxLang MiniServer Runtime'
-		 if( branch == 'development' ){
-		   attributes 'Implementation-Version': "${version}-SNAPSHOT"
-	   } else {
-		   attributes 'Implementation-Version': "${version}+${buildID}"
-	   }
+		attributes 'Implementation-Version': "${version}+${buildID}"
 	   attributes 'Created-On': new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format( new Date() )
 	   attributes 'Created-By': "Ortus Solutions, Corp"
     }
@@ -169,13 +172,7 @@ processResources {
 	// Replace @build.date@ with the current date in META-INF/version.properties file
 	filter( ReplaceTokens, tokens: [ 'build.date': new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format( new Date() ) ] )
 	// Replace @build.version@ with the current version in META-INF/version.properties file
-	filter( ReplaceTokens, tokens: [ 'build.version': version ] )
-	// If we are in branch == development then update +build.number to -SNAPSHOT
-	if( branch == 'development' ){
-		filter( ReplaceTokens, tokens: [ 'build.number': "-SNAPSHOT" ] )
-	} else {
-		filter( ReplaceTokens, tokens: [ 'build.number': "+" + buildID ] )
-	}
+	filter( ReplaceTokens, tokens: [ 'build.version': version + "+" + buildID ] )
 }
 
 javadoc {
