@@ -97,7 +97,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
-	 * 
+	 *
 	 * @param exchange The Undertow exchange for this request
 	 */
 	public BoxHTTPUndertowExchange( HttpServerExchange exchange ) {
@@ -106,7 +106,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Get the response channel for this exchange
-	 * 
+	 *
 	 * @return The response channel
 	 */
 	public synchronized StreamSinkChannel getResponseChannel() {
@@ -118,7 +118,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Get the Undertow exchange for this request
-	 * 
+	 *
 	 * @return The Undertow exchange
 	 */
 	public HttpServerExchange getExchange() {
@@ -521,7 +521,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public PrintWriter getResponseWriter() {
 		if ( writer == null ) {
-			OutputStream outputStream = new BufferedOutputStream( Channels.newOutputStream( getResponseChannel() ) );
+			OutputStream outputStream = new BufferedOutputStream( Channels.newOutputStream( getResponseChannel() ), 8192 * 8192 );
 			writer = new PrintWriter( outputStream, false );
 		}
 		return writer;
