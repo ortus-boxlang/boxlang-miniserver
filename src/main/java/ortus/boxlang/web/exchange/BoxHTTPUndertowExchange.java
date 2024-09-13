@@ -17,7 +17,6 @@
  */
 package ortus.boxlang.web.exchange;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,7 +26,6 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.security.Principal;
@@ -59,6 +57,7 @@ import io.undertow.util.LocaleUtils;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.exceptions.BoxRuntimeException;
 import ortus.boxlang.web.context.WebRequestBoxContext;
+import ortus.boxlang.web.util.BlockingBufferedOutputStream;
 
 /**
  * I implement a BoxLang HTTP exchange for Undertow
@@ -97,7 +96,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
-	 * 
+	 *
 	 * @param exchange The Undertow exchange for this request
 	 */
 	public BoxHTTPUndertowExchange( HttpServerExchange exchange ) {
@@ -106,7 +105,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Get the response channel for this exchange
-	 * 
+	 *
 	 * @return The response channel
 	 */
 	public synchronized StreamSinkChannel getResponseChannel() {
@@ -118,7 +117,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	/**
 	 * Get the Undertow exchange for this request
-	 * 
+	 *
 	 * @return The Undertow exchange
 	 */
 	public HttpServerExchange getExchange() {
@@ -521,7 +520,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public PrintWriter getResponseWriter() {
 		if ( writer == null ) {
-			OutputStream outputStream = new BufferedOutputStream( Channels.newOutputStream( getResponseChannel() ) );
+			OutputStream outputStream = new BlockingBufferedOutputStream( getResponseChannel() );
 			writer = new PrintWriter( outputStream, false );
 		}
 		return writer;
