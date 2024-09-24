@@ -67,39 +67,39 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * Request attributes
 	 */
-	private Map<String, Object>		attributes	= new HashMap<String, Object>();
+	private Map<String, Object> attributes = new HashMap<String, Object>();
 
 	/**
 	 * Undertow response channel
 	 */
-	protected StreamSinkChannel		channel		= null;
+	protected StreamSinkChannel channel = null;
 
 	/**
 	 * PrintWriter for the response that wraps the channel
 	 */
-	PrintWriter						writer;
+	PrintWriter writer;
 
 	/**
 	 * The Undertow exchange for this request
 	 */
-	protected HttpServerExchange	exchange;
+	protected HttpServerExchange exchange;
 
 	/**
 	 * The BoxLang context for this request
 	 */
-	protected WebRequestBoxContext	context;
+	protected WebRequestBoxContext context;
 
 	/**
 	 * The list of file uploads
 	 */
-	List<FileUpload>				fileUploads	= new ArrayList<FileUpload>();
+	List<FileUpload> fileUploads = new ArrayList<FileUpload>();
 
 	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
 	 *
 	 * @param exchange The Undertow exchange for this request
 	 */
-	public BoxHTTPUndertowExchange( HttpServerExchange exchange ) {
+	public BoxHTTPUndertowExchange(HttpServerExchange exchange) {
 		this.exchange = exchange;
 	}
 
@@ -109,7 +109,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	 * @return The response channel
 	 */
 	public synchronized StreamSinkChannel getResponseChannel() {
-		if ( channel == null ) {
+		if (channel == null) {
 			channel = exchange.getResponseChannel();
 		}
 		return channel;
@@ -125,7 +125,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	}
 
 	@Override
-	public void setWebContext( WebRequestBoxContext context ) {
+	public void setWebContext(WebRequestBoxContext context) {
 		this.context = context;
 	}
 
@@ -135,52 +135,58 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	}
 
 	@Override
-	@SuppressWarnings( "deprecation" )
-	public void forward( String URI ) {
-		exchange.setRequestPath( URI );
-		exchange.setRelativePath( URI );
+	@SuppressWarnings("deprecation")
+	public void forward(String URI) {
+		exchange.setRequestPath(URI);
+		exchange.setRelativePath(URI);
 		exchange.dispatch();
 	}
 
 	@Override
-	public void addResponseCookie( BoxCookie cookie ) {
-		if ( !isResponseStarted() ) {
-			Cookie c = new CookieImpl( cookie.getName(), cookie.getValue() );
-			if ( cookie.getDomain() != null )
-				c.setDomain( cookie.getDomain() );
-			if ( cookie.getPath() != null )
-				c.setPath( cookie.getPath() );
-			c.setSecure( cookie.isSecure() );
-			c.setHttpOnly( cookie.isHttpOnly() );
-			if ( cookie.getMaxAge() != null )
-				c.setMaxAge( cookie.getMaxAge() );
-			c.setSameSite( cookie.isSameSite() );
-			if ( cookie.getExpires() != null )
-				c.setExpires( cookie.getExpires() );
-			if ( cookie.getSameSiteMode() != null )
-				c.setSameSiteMode( cookie.getSameSiteMode() );
-			exchange.setResponseCookie( c );
+	public void addResponseCookie(BoxCookie cookie) {
+		if (!isResponseStarted()) {
+			Cookie c = new CookieImpl(cookie.getName(), cookie.getValue());
+			if (cookie.getDomain() != null)
+				c.setDomain(cookie.getDomain());
+			if (cookie.getPath() != null)
+				c.setPath(cookie.getPath());
+			c.setSecure(cookie.isSecure());
+			c.setHttpOnly(cookie.isHttpOnly());
+			if (cookie.getMaxAge() != null)
+				c.setMaxAge(cookie.getMaxAge());
+			c.setSameSite(cookie.isSameSite());
+			if (cookie.getExpires() != null)
+				c.setExpires(cookie.getExpires());
+			if (cookie.getSameSiteMode() != null)
+				c.setSameSiteMode(cookie.getSameSiteMode());
+			exchange.setResponseCookie(c);
 		}
 	}
 
 	@Override
-	public void addResponseHeader( String name, String value ) {
-		exchange.getResponseHeaders().put( new HttpString( name ), value );
+	public void addResponseHeader(String name, String value) {
+		exchange.getResponseHeaders().put(new HttpString(name), value);
 	}
 
 	@Override
 	public void flushResponseBuffer() {
 		try {
+
+			var contentType = getResponseHeader("Content-Type");
+			if (contentType == null || contentType.isEmpty()) {
+				setResponseHeader("Content-Type", "text/html;charset=UTF-8");
+			}
+
 			writer.flush();
 			getResponseChannel().flush();
-		} catch ( IOException e ) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
 	@Override
-	public Object getRequestAttribute( String name ) {
-		return attributes.get( name );
+	public Object getRequestAttribute(String name) {
+		return attributes.get(name);
 	}
 
 	@Override
@@ -196,26 +202,26 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public String getRequestCharacterEncoding() {
-		String contentType = exchange.getRequestHeaders().getFirst( Headers.CONTENT_TYPE );
-		if ( contentType == null ) {
+		String contentType = exchange.getRequestHeaders().getFirst(Headers.CONTENT_TYPE);
+		if (contentType == null) {
 			return null;
 		}
 
-		return Headers.extractQuotedValueFromHeader( contentType, "charset" );
+		return Headers.extractQuotedValueFromHeader(contentType, "charset");
 	}
 
 	@Override
 	public long getRequestContentLength() {
-		final String contentLength = getRequestHeader( Headers.CONTENT_LENGTH );
-		if ( contentLength == null || contentLength.isEmpty() ) {
+		final String contentLength = getRequestHeader(Headers.CONTENT_LENGTH);
+		if (contentLength == null || contentLength.isEmpty()) {
 			return -1;
 		}
-		return Long.parseLong( contentLength );
+		return Long.parseLong(contentLength);
 	}
 
 	@Override
 	public String getRequestContentType() {
-		return getRequestHeader( Headers.CONTENT_TYPE );
+		return getRequestHeader(Headers.CONTENT_TYPE);
 	}
 
 	@Override
@@ -225,28 +231,28 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public BoxCookie[] getRequestCookies() {
-		Iterable<Cookie>	cookiesIterable	= exchange.requestCookies();
-		List<Cookie>		cookies			= new ArrayList<>();
-		cookiesIterable.forEach( cookies::add );
+		Iterable<Cookie> cookiesIterable = exchange.requestCookies();
+		List<Cookie> cookies = new ArrayList<>();
+		cookiesIterable.forEach(cookies::add);
 
-		BoxCookie[] boxCookies = new BoxCookie[ cookies.size() ];
-		for ( int i = 0; i < cookies.size(); i++ ) {
-			Cookie	cookie	= cookies.get( i );
-			var		c		= new BoxCookie( cookie.getName(), cookie.getValue() );
-			if ( cookie.getDomain() != null )
-				c.setDomain( cookie.getDomain() );
-			if ( cookie.getPath() != null )
-				c.setPath( cookie.getPath() );
-			c.setSecure( cookie.isSecure() );
-			c.setHttpOnly( cookie.isHttpOnly() );
-			if ( cookie.getMaxAge() != null )
-				c.setMaxAge( cookie.getMaxAge() );
-			c.setSameSite( cookie.isSameSite() );
-			if ( cookie.getExpires() != null )
-				c.setExpires( cookie.getExpires() );
-			if ( cookie.getSameSiteMode() != null )
-				c.setSameSiteMode( cookie.getSameSiteMode() );
-			boxCookies[ i ] = c;
+		BoxCookie[] boxCookies = new BoxCookie[cookies.size()];
+		for (int i = 0; i < cookies.size(); i++) {
+			Cookie cookie = cookies.get(i);
+			var c = new BoxCookie(cookie.getName(), cookie.getValue());
+			if (cookie.getDomain() != null)
+				c.setDomain(cookie.getDomain());
+			if (cookie.getPath() != null)
+				c.setPath(cookie.getPath());
+			c.setSecure(cookie.isSecure());
+			c.setHttpOnly(cookie.isHttpOnly());
+			if (cookie.getMaxAge() != null)
+				c.setMaxAge(cookie.getMaxAge());
+			c.setSameSite(cookie.isSameSite());
+			if (cookie.getExpires() != null)
+				c.setExpires(cookie.getExpires());
+			if (cookie.getSameSiteMode() != null)
+				c.setSameSiteMode(cookie.getSameSiteMode());
+			boxCookies[i] = c;
 		}
 		return boxCookies;
 	}
@@ -254,31 +260,31 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public Map<String, String[]> getRequestHeaderMap() {
 		Map<String, String[]> headers = new HashMap<>();
-		exchange.getRequestHeaders().forEach( ( headerValues ) -> {
-			headers.put( headerValues.getHeaderName().toString(), headerValues.toArray( new String[ 0 ] ) );
-		} );
+		exchange.getRequestHeaders().forEach((headerValues) -> {
+			headers.put(headerValues.getHeaderName().toString(), headerValues.toArray(new String[0]));
+		});
 		return headers;
 	}
 
 	@Override
-	public String getRequestHeader( String name ) {
-		return exchange.getRequestHeaders().getFirst( name );
+	public String getRequestHeader(String name) {
+		return exchange.getRequestHeaders().getFirst(name);
 
 	}
 
-	public String getRequestHeader( final HttpString name ) {
+	public String getRequestHeader(final HttpString name) {
 		HeaderMap headers = exchange.getRequestHeaders();
-		return headers.getFirst( name );
+		return headers.getFirst(name);
 	}
 
 	@Override
 	public String getRequestLocalAddr() {
 		InetSocketAddress destinationAddress = exchange.getDestinationAddress();
-		if ( destinationAddress == null ) {
+		if (destinationAddress == null) {
 			return "";
 		}
 		InetAddress address = destinationAddress.getAddress();
-		if ( address == null ) {
+		if (address == null) {
 			// this is unresolved, so we just return the host name
 			return destinationAddress.getHostString();
 		}
@@ -302,12 +308,12 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public Enumeration<Locale> getRequestLocales() {
-		final List<String>	acceptLanguage	= exchange.getRequestHeaders().get( Headers.ACCEPT_LANGUAGE );
-		List<Locale>		ret				= LocaleUtils.getLocalesFromHeader( acceptLanguage );
-		if ( ret.isEmpty() ) {
-			return Collections.enumeration( Collections.singletonList( Locale.getDefault() ) );
+		final List<String> acceptLanguage = exchange.getRequestHeaders().get(Headers.ACCEPT_LANGUAGE);
+		List<Locale> ret = LocaleUtils.getLocalesFromHeader(acceptLanguage);
+		if (ret.isEmpty()) {
+			return Collections.enumeration(Collections.singletonList(Locale.getDefault()));
 		}
-		return Collections.enumeration( ret );
+		return Collections.enumeration(ret);
 	}
 
 	@Override
@@ -317,13 +323,13 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public Map<String, String[]> getRequestURLMap() {
-		Map<String, Deque<String>>	queryParameters			= exchange.getQueryParameters();
-		Map<String, String[]>		queryParametersArray	= new HashMap<>();
-		for ( Map.Entry<String, Deque<String>> entry : queryParameters.entrySet() ) {
-			String			key			= entry.getKey();
-			Deque<String>	valueDeque	= entry.getValue();
-			String[]		valueArray	= valueDeque.toArray( new String[ 0 ] );
-			queryParametersArray.put( key, valueArray );
+		Map<String, Deque<String>> queryParameters = exchange.getQueryParameters();
+		Map<String, String[]> queryParametersArray = new HashMap<>();
+		for (Map.Entry<String, Deque<String>> entry : queryParameters.entrySet()) {
+			String key = entry.getKey();
+			Deque<String> valueDeque = entry.getValue();
+			String[] valueArray = valueDeque.toArray(new String[0]);
+			queryParametersArray.put(key, valueArray);
 		}
 		return queryParametersArray;
 	}
@@ -331,40 +337,40 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public Map<String, String[]> getRequestFormMap() {
 		// Store all files on disk
-		System.setProperty( "io.undertow.multipart.minsize", "0" );
-		FormParserFactory		parserFactory	= FormParserFactory.builder().build();
-		FormDataParser			parser			= parserFactory.createParser( exchange );
+		System.setProperty("io.undertow.multipart.minsize", "0");
+		FormParserFactory parserFactory = FormParserFactory.builder().build();
+		FormDataParser parser = parserFactory.createParser(exchange);
 
-		FormData				formData;
-		Map<String, String[]>	formMap			= new HashMap<>();
+		FormData formData;
+		Map<String, String[]> formMap = new HashMap<>();
 
 		// If there is no parser for the request content type, this will be null
-		if ( parser != null ) {
+		if (parser != null) {
 
 			try {
 				formData = parser.parseBlocking();
-			} catch ( IOException e ) {
-				throw new BoxRuntimeException( "Could not parse form data", e );
+			} catch (IOException e) {
+				throw new BoxRuntimeException("Could not parse form data", e);
 			}
-			for ( String key : formData ) {
+			for (String key : formData) {
 				formMap.put(
-				    key,
-				    formData.get( key )
-				        .stream()
-				        .map( f -> {
-					        if ( f.isFileItem() ) {
-						        Path file = f.getFileItem().getFile();
-						        if ( file != null ) {
-							        fileUploads.add( new FileUpload( Key.of( key ), file, f.getFileName() ) );
-							        return file.toString();
-						        } else {
-							        return f.getValue();
-						        }
-					        } else {
-						        return f.getValue();
-					        }
-				        } )
-				        .toArray( String[]::new ) );
+						key,
+						formData.get(key)
+								.stream()
+								.map(f -> {
+									if (f.isFileItem()) {
+										Path file = f.getFileItem().getFile();
+										if (file != null) {
+											fileUploads.add(new FileUpload(Key.of(key), file, f.getFileName()));
+											return file.toString();
+										} else {
+											return f.getValue();
+										}
+									} else {
+										return f.getValue();
+									}
+								})
+								.toArray(String[]::new));
 			}
 			return formMap;
 		} else {
@@ -375,16 +381,16 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public FileUpload[] getUploadData() {
-		return fileUploads.toArray( new FileUpload[ 0 ] );
+		return fileUploads.toArray(new FileUpload[0]);
 	}
 
 	@Override
 	public String getRequestPathInfo() {
 		// In the mini server, we set this predicate context value in the BLHandler
 		// prior to the request
-		Map<String, Object> predicateContext = exchange.getAttachment( Predicate.PREDICATE_CONTEXT );
-		if ( predicateContext.containsKey( "pathInfo" ) ) {
-			return ( String ) predicateContext.get( "pathInfo" );
+		Map<String, Object> predicateContext = exchange.getAttachment(Predicate.PREDICATE_CONTEXT);
+		if (predicateContext.containsKey("pathInfo")) {
+			return (String) predicateContext.get("pathInfo");
 		} else {
 			return "";
 		}
@@ -392,7 +398,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public String getRequestPathTranslated() {
-		return Path.of( getWebContext().getWebRoot(), getRequestURI() ).toString();
+		return Path.of(getWebContext().getWebRoot(), getRequestURI()).toString();
 	}
 
 	@Override
@@ -412,17 +418,17 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			// If this stream has already been read, return an empty string
 			// TODO: Figure out how to intercept the Undertow input stream so we can access
 			// it even after the form scope has been processed.
-			if ( inputStream.available() == 0 ) {
+			if (inputStream.available() == 0) {
 				return "";
 			}
-			if ( isTextBasedContentType() ) {
-				try ( Scanner scanner = new java.util.Scanner( inputStream ).useDelimiter( "\\A" ) ) {
+			if (isTextBasedContentType()) {
+				try (Scanner scanner = new java.util.Scanner(inputStream).useDelimiter("\\A")) {
 					return scanner.next();
 				}
 			} else {
 				return inputStream.readAllBytes();
 			}
-		} catch ( IOException e ) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			return "";
 		}
@@ -431,11 +437,11 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public String getRequestRemoteAddr() {
 		InetSocketAddress sourceAddress = exchange.getSourceAddress();
-		if ( sourceAddress == null ) {
+		if (sourceAddress == null) {
 			return "";
 		}
 		InetAddress address = sourceAddress.getAddress();
-		if ( address == null ) {
+		if (address == null) {
 			return sourceAddress.getHostString();
 		}
 		return address.getHostAddress();
@@ -444,7 +450,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public String getRequestRemoteHost() {
 		InetSocketAddress sourceAddress = exchange.getSourceAddress();
-		if ( sourceAddress == null ) {
+		if (sourceAddress == null) {
 			return "";
 		}
 		return sourceAddress.getHostString();
@@ -484,31 +490,31 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public StringBuffer getRequestURL() {
-		return new StringBuffer( exchange.getRequestURL() );
+		return new StringBuffer(exchange.getRequestURL());
 	}
 
 	@Override
 	public Principal getRequestUserPrincipal() {
-		SecurityContext	securityContext	= exchange.getSecurityContext();
-		Principal		result			= null;
-		Account			account			= null;
-		if ( securityContext != null && ( account = securityContext.getAuthenticatedAccount() ) != null ) {
+		SecurityContext securityContext = exchange.getSecurityContext();
+		Principal result = null;
+		Account account = null;
+		if (securityContext != null && (account = securityContext.getAuthenticatedAccount()) != null) {
 			result = account.getPrincipal();
 		}
 		return result;
 	}
 
 	@Override
-	public String getResponseHeader( String name ) {
-		return exchange.getResponseHeaders().getFirst( name );
+	public String getResponseHeader(String name) {
+		return exchange.getResponseHeaders().getFirst(name);
 	}
 
 	@Override
 	public Map<String, String[]> getResponseHeaderMap() {
 		Map<String, String[]> headers = new HashMap<>();
-		exchange.getResponseHeaders().forEach( ( headerValues ) -> {
-			headers.put( headerValues.getHeaderName().toString(), headerValues.toArray( new String[ 0 ] ) );
-		} );
+		exchange.getResponseHeaders().forEach((headerValues) -> {
+			headers.put(headerValues.getHeaderName().toString(), headerValues.toArray(new String[0]));
+		});
 		return headers;
 	}
 
@@ -519,31 +525,31 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public PrintWriter getResponseWriter() {
-		if ( writer == null ) {
-			OutputStream outputStream = new BlockingBufferedOutputStream( getResponseChannel() );
-			writer = new PrintWriter( outputStream, false );
+		if (writer == null) {
+			OutputStream outputStream = new BlockingBufferedOutputStream(getResponseChannel());
+			writer = new PrintWriter(outputStream, false);
 		}
 		return writer;
 	}
 
 	@Override
-	public void sendResponseBinary( byte[] data ) {
-		ByteBuffer bBuffer = ByteBuffer.wrap( data );
+	public void sendResponseBinary(byte[] data) {
+		ByteBuffer bBuffer = ByteBuffer.wrap(data);
 		try {
-			getResponseChannel().write( bBuffer );
-		} catch ( IOException e ) {
+			getResponseChannel().write(bBuffer);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
 	@Override
-	public void sendResponseFile( File file ) {
-		try ( FileInputStream fis = new FileInputStream( file ) ) {
+	public void sendResponseFile(File file) {
+		try (FileInputStream fis = new FileInputStream(file)) {
 			// This method doesn't buffer entire file in heap.
 			// On supported kernels, it may even use sendfile directly
 			FileChannel fileChannel = fis.getChannel();
-			getResponseChannel().transferFrom( fileChannel, 0, fileChannel.size() );
-		} catch ( IOException e ) {
+			getResponseChannel().transferFrom(fileChannel, 0, fileChannel.size());
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -554,8 +560,8 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	}
 
 	@Override
-	public void removeRequestAttribute( String name ) {
-		attributes.remove( name );
+	public void removeRequestAttribute(String name) {
+		attributes.remove(name);
 	}
 
 	@Override
@@ -564,37 +570,37 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	}
 
 	@Override
-	public void setRequestAttribute( String name, Object value ) {
-		attributes.put( name, value );
+	public void setRequestAttribute(String name, Object value) {
+		attributes.put(name, value);
 	}
 
 	@Override
-	public void setResponseHeader( String name, String value ) {
-		if ( !isResponseStarted() ) {
-			exchange.getResponseHeaders().put( new HttpString( name ), value );
+	public void setResponseHeader(String name, String value) {
+		if (!isResponseStarted()) {
+			exchange.getResponseHeaders().put(new HttpString(name), value);
 		}
 	}
 
 	@Override
-	public void setResponseStatus( int sc ) {
-		if ( !isResponseStarted() ) {
-			exchange.setStatusCode( sc );
+	public void setResponseStatus(int sc) {
+		if (!isResponseStarted()) {
+			exchange.setStatusCode(sc);
 		}
 	}
 
 	@Override
-	public void setResponseStatus( int sc, String sm ) {
-		if ( !isResponseStarted() ) {
-			exchange.setStatusCode( sc );
-			exchange.setReasonPhrase( sm );
+	public void setResponseStatus(int sc, String sm) {
+		if (!isResponseStarted()) {
+			exchange.setStatusCode(sc);
+			exchange.setReasonPhrase(sm);
 		}
 	}
 
 	@Override
-	public BoxCookie getRequestCookie( String name ) {
+	public BoxCookie getRequestCookie(String name) {
 		var cookies = getRequestCookies();
-		for ( BoxCookie cookie : cookies ) {
-			if ( cookie.getName().equalsIgnoreCase( name ) ) {
+		for (BoxCookie cookie : cookies) {
+			if (cookie.getName().equalsIgnoreCase(name)) {
 				return cookie;
 			}
 		}
