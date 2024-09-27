@@ -34,6 +34,10 @@ public class BlockingBufferedOutputStream extends OutputStream {
 	}
 
 	private void flushBuffer() throws IOException {
+		if ( channel == null ) {
+			buffer.clear();
+			return;
+		}
 		buffer.flip();
 		while ( buffer.hasRemaining() ) {
 			channel.awaitWritable(); // Block until the channel is writable
@@ -50,6 +54,9 @@ public class BlockingBufferedOutputStream extends OutputStream {
 	@Override
 	public void close() throws IOException {
 		flush();
+		if ( channel == null ) {
+			return;
+		}
 		channel.close();
 	}
 }

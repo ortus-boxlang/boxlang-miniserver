@@ -25,6 +25,8 @@ import java.util.Map;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.predicate.Predicates;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.encoding.ContentEncodingRepository;
 import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.server.handlers.encoding.GzipEncodingProvider;
@@ -33,6 +35,7 @@ import io.undertow.server.handlers.resource.ResourceHandler;
 import io.undertow.server.handlers.resource.ResourceManager;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.web.handlers.BLHandler;
+import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
 
 /**
@@ -55,6 +58,12 @@ import ortus.boxlang.web.handlers.WelcomeFileHandler;
  * This will start the BoxLang MiniServer on port 8080, serving files from {@code /path/to/webroot}, and enable debug mode.
  */
 public class MiniServer {
+
+	public static boolean									shuttingDown	= false;
+
+	public static WebsocketHandler							websocketHandler;
+
+	private static final ThreadLocal<HttpServerExchange>	currentExchange	= new ThreadLocal<HttpServerExchange>();
 
 	public static void main( String[] args ) {
 		Map<String, String>	envVars		= System.getenv();
@@ -119,30 +128,57 @@ public class MiniServer {
 
 		System.out.println( "+ Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
 
+		HttpHandler httpHandler = new EncodingHandler(
+		    new ContentEncodingRepository().addEncodingHandler(
+		        "gzip", new GzipEncodingProvider(), 50, Predicates.parse( "request-larger-than(1500)" )
+		    )
+		)
+		    .setNext( new WelcomeFileHandler(
+		        Handlers.predicate(
+		            // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
+		            Predicates.parse( "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )" ),
+		            new BLHandler( absWebRoot.toString() ),
+		            new ResourceHandler( resourceManager )
+		                .setDirectoryListingEnabled( true ) ),
+		        resourceManager,
+		        List.of( "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html" )
+		    ) );
+
+		System.out.println( "+ WebSocket Server started" );
+		httpHandler			= new WebsocketHandler( httpHandler, "/ws" );
+		websocketHandler	= ( WebsocketHandler ) httpHandler;
+
+		final HttpHandler finalHttpHandler = httpHandler;
+		httpHandler = new HttpHandler() {
+
+			@Override
+			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
+				try {
+					// This allows the exchange to be available to the thread.
+					MiniServer.setCurrentExchange( exchange );
+					finalHttpHandler.handleRequest( exchange );
+				} finally {
+					// Clean up after
+					MiniServer.setCurrentExchange( null );
+				}
+			}
+
+			@Override
+			public String toString() {
+				return "Websocket Exchange Setter Handler";
+			}
+		};
+
 		// Build out the server
 		Undertow BLServer = builder
 		    .addHttpListener( port, host )
-		    .setHandler(
-		        new EncodingHandler(
-		            new ContentEncodingRepository().addEncodingHandler(
-		                "gzip", new GzipEncodingProvider(), 50, Predicates.parse( "request-larger-than(1500)" )
-		            )
-		        )
-		            .setNext( new WelcomeFileHandler(
-		                Handlers.predicate(
-		                    // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
-		                    Predicates.parse( "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )" ),
-		                    new BLHandler( absWebRoot.toString() ),
-		                    new ResourceHandler( resourceManager )
-		                        .setDirectoryListingEnabled( true ) ),
-		                resourceManager,
-		                List.of( "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html" )
-		            ) ) )
+		    .setHandler( httpHandler )
 		    .build();
 
 		// Add a shutdown hook to stop the server
 		// Add shutdown hook to gracefully stop the server
 		Runtime.getRuntime().addShutdownHook( new Thread( () -> {
+			shuttingDown = true;
 			System.out.println( "Shutting down BoxLang Server..." );
 			BLServer.stop();
 			runtime.shutdown();
@@ -155,4 +191,17 @@ public class MiniServer {
 		System.out.println( "Press Ctrl+C to stop the server." );
 		BLServer.start();
 	}
+
+	public static HttpServerExchange getCurrentExchange() {
+		return currentExchange.get();
+	}
+
+	public static void setCurrentExchange( HttpServerExchange exchange ) {
+		currentExchange.set( exchange );
+	}
+
+	public static WebsocketHandler getWebsocketHandler() {
+		return websocketHandler;
+	}
+
 }
