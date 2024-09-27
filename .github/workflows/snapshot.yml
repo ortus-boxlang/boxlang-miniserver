@@ -71,5 +71,6 @@ jobs:
     permissions:
       checks: write
       contents: write
+      packages: write
     with:
       snapshot: true

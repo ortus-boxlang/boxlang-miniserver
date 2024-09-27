@@ -171,6 +171,12 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public void flushResponseBuffer() {
 		try {
+
+			var contentType = getResponseHeader( "Content-Type" );
+			if ( contentType == null || contentType.isEmpty() ) {
+				setResponseHeader( "Content-Type", "text/html;charset=UTF-8" );
+			}
+
 			writer.flush();
 			getResponseChannel().flush();
 		} catch ( IOException e ) {

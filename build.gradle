@@ -2,7 +2,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
-// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging
+// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging 
 plugins {
     id 'java'
 	// Apply the application plugin to add support for building a CLI application in Java.
@@ -20,6 +20,10 @@ plugins {
     id "de.undercouch.download" version "5.6.0"
 	// Task visualizer
 	id "com.dorongold.task-tree" version "4.0.0"
+	// Maven Publisher
+	id 'maven-publish'
+	id 'signing'
+	id 'com.gradleup.nmcp' version "0.0.9"
 }
 
 /**
@@ -56,6 +60,7 @@ dependencies {
 
 	// https://mvnrepository.com/artifact/io.undertow/undertow-core/2.3.12.Final
 	implementation 'io.undertow:undertow-core:2.3.17.Final'
+    implementation 'io.undertow:undertow-websockets-jsr:2.3.17.Final'
 
     // Testing Dependencies
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
@@ -74,6 +79,7 @@ application {
 
 java {
 	withJavadocJar()
+	withSourcesJar()
 }
 
 compileJava {
@@ -149,6 +155,145 @@ task createDistributionFile( type: Zip ){
 	}
 }
 build.finalizedBy( createDistributionFile )
+
+/**
+ * Publish the artifacts to the local maven repository
+ */
+publishing {
+    publications {
+        shadow( MavenPublication ) { publication ->
+			artifact shadowJar
+			artifact javadocJar
+			artifact sourcesJar
+
+			// This is the only one sonatype accepts, not ortus.boxlang
+			// https://central.sonatype.com/
+			groupId = 'io.boxlang'
+			artifactId = 'boxlang-miniserver'
+			pom {
+				name = "BoxLang MiniServer Runtime"
+				description = "BoxLang is a dynamic multi-runtime JVM Language based on fluency and functional constructs. This is a lightweight and fast web server for BoxLang."
+				url = "https://boxlang.io"
+				issueManagement {
+					system = "Jira"
+					url = "https://ortussolutions.atlassian.net/jira/software/c/projects/BL/issues"
+				}
+				mailingLists {
+					mailingList {
+						name = "BoxLang Community"
+						subscribe = "https://community.ortussolutions.com/c/boxlang/42"
+						unsubscribe = "https://community.ortussolutions.com/c/boxlang/42"
+					}
+				}
+				licenses {
+					license {
+						name = 'The Apache License, Version 2.0'
+						url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+					}
+				}
+				scm {
+					connection = 'scm:git:https://github.com/ortus-boxlang/boxlang.git'
+					developerConnection = 'scm:git:ssh://github.com/ortus-boxlang/boxlang.git'
+					url = 'https://github.com/ortus-boxlang/boxlang'
+				}
+				developers{
+					developer {
+						id  = "lmajano"
+						name = "Luis Majano"
+						email = "lmajano@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "bdw429s"
+						name = "Brad Wood"
+						email = "brad@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "jclausen"
+						name = "Jon Clausen"
+						email = "jclausen@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "michaelborn"
+						name = "Michael Born"
+						email = "michael@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "garciadev"
+						name = "Daniel Garcia"
+						email = "dgarcia@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "jbeers"
+						name = "Jacob Beers"
+						email = "jbeers@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "gpickin"
+						name = "Gavin Pickin"
+						email = "gavin@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+					developer {
+						id = "ericpeterson"
+						name = "Eric Peterson"
+						email = "eric@ortussolutions.com"
+						organization = "Ortus Solutions, Corp"
+						organizationUrl = "https://www.ortussolutions.com"
+					}
+				}
+			}
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'local-repo'
+            url = layout.buildDirectory.dir( "repo" )
+        }
+		maven {
+			name = "GitHubPackages"
+			url = "https://maven.pkg.github.com/ortus-boxlang/boxlang"
+			credentials {
+				username = System.getenv( "GITHUB_ACTOR" )
+				password = System.getenv( "GITHUB_TOKEN" )
+			}
+		}
+    }
+}
+
+nmcp {
+  publishAllProjectsProbablyBreakingProjectIsolation {
+    username = System.getenv( "MAVEN_USERNAME" ) ?: project.findProperty( "maven_username" )
+    password = System.getenv( "MAVEN_PASSWORD" ) ?: project.findProperty( "maven_password" )
+    // publish manually from the portal
+    //publicationType = "USER_MANAGED"
+    // or if you want to publish automatically
+    publicationType = "AUTOMATIC"
+  }
+}
+
+/**
+ * Digital Signing of assets
+ */
+signing {
+	def signingKey = System.getenv("GPG_KEY") ?: project.findProperty("signing.keyId")
+	def signingPassword = System.getenv("GPG_PASSWORD") ?: project.findProperty("signing.password")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.shadow
+}
 
 /**
  * Docs are here:
