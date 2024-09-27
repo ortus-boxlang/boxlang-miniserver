@@ -2,7 +2,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
-// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging
+// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging 
 plugins {
     id 'java'
 	// Apply the application plugin to add support for building a CLI application in Java.
