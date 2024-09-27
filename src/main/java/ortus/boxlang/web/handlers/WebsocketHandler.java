@@ -15,13 +15,11 @@ import ortus.boxlang.web.MiniServer;
 
 public class WebsocketHandler extends PathHandler {
 
-	private final HttpHandler						next;
 	private final Set<WebSocketChannel>				connections	= Collections.synchronizedSet( new HashSet<>() );
 	private final WebSocketProtocolHandshakeHandler	webSocketProtocolHandshakeHandler;
 
 	public WebsocketHandler( final HttpHandler next, String prefixPath ) {
 		super( next );
-		this.next								= next;
 		this.webSocketProtocolHandshakeHandler	= new WebSocketProtocolHandshakeHandler(
 		    new WebSocketConnectionCallback() {
 
