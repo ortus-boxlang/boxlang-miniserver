@@ -20,7 +20,7 @@ public class WebsocketHandler extends PathHandler {
 
 	public WebsocketHandler( final HttpHandler next, String prefixPath ) {
 		super( next );
-		this.webSocketProtocolHandshakeHandler	= new WebSocketProtocolHandshakeHandler(
+		this.webSocketProtocolHandshakeHandler = new WebSocketProtocolHandshakeHandler(
 		    new WebSocketConnectionCallback() {
 
 			    @Override
