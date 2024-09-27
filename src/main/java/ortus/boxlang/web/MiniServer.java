@@ -34,6 +34,8 @@ import io.undertow.server.handlers.resource.PathResourceManager;
 import io.undertow.server.handlers.resource.ResourceHandler;
 import io.undertow.server.handlers.resource.ResourceManager;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.scopes.Key;
+import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
@@ -122,7 +124,10 @@ public class MiniServer {
 		System.out.println( "+ Starting BoxLang Runtime..." );
 
 		// Startup the runtime
-		BoxRuntime			runtime			= BoxRuntime.getInstance( debug, configPath, serverHome );
+		BoxRuntime	runtime		= BoxRuntime.getInstance( debug, configPath, serverHome );
+		IStruct		versionInfo	= runtime.getVersionInfo();
+		System.out.println(
+		    "- BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: " + versionInfo.getAsString( Key.of( "buildDate" ) ) + ")" );
 		Undertow.Builder	builder			= Undertow.builder();
 		ResourceManager		resourceManager	= new PathResourceManager( absWebRoot );
 
