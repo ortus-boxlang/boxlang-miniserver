@@ -34,6 +34,8 @@ import io.undertow.server.handlers.resource.PathResourceManager;
 import io.undertow.server.handlers.resource.ResourceHandler;
 import io.undertow.server.handlers.resource.ResourceManager;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.scopes.Key;
+import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
@@ -71,7 +73,8 @@ public class MiniServer {
 		// Setup default values
 		int					port		= Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", "8080" ) );
 		String				webRoot		= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
-		boolean				debug		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_DEBUG", "false" ) );
+		// DO NOT DEFAULT THIS.
+		Boolean				debug		= Boolean.parseBoolean( envVars.get( "BOXLANG_DEBUG" ) );
 		String				host		= envVars.getOrDefault( "BOXLANG_HOST", "localhost" );
 		String				configPath	= envVars.getOrDefault( "BOXLANG_CONFIG", null );
 		String				serverHome	= envVars.getOrDefault( "BOXLANG_HOME", null );
@@ -116,13 +119,18 @@ public class MiniServer {
 		System.out.println( "- Web Root: " + absWebRoot.toString() );
 		System.out.println( "- Host: " + host );
 		System.out.println( "- Port: " + port );
-		System.out.println( "- Debug: " + debug );
+		if ( debug != null ) {
+			System.out.println( "- Debug: " + debug );
+		}
 		System.out.println( "- Config Path: " + configPath );
 		System.out.println( "- Server Home: " + serverHome );
 		System.out.println( "+ Starting BoxLang Runtime..." );
 
 		// Startup the runtime
-		BoxRuntime			runtime			= BoxRuntime.getInstance( debug, configPath, serverHome );
+		BoxRuntime	runtime		= BoxRuntime.getInstance( debug, configPath, serverHome );
+		IStruct		versionInfo	= runtime.getVersionInfo();
+		System.out.println(
+		    "- BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: " + versionInfo.getAsString( Key.of( "buildDate" ) ) + ")" );
 		Undertow.Builder	builder			= Undertow.builder();
 		ResourceManager		resourceManager	= new PathResourceManager( absWebRoot );
 

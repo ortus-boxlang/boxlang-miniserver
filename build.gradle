@@ -2,7 +2,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
-// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging 
+// https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging
 plugins {
     id 'java'
 	// Apply the application plugin to add support for building a CLI application in Java.
@@ -192,9 +192,9 @@ publishing {
 					}
 				}
 				scm {
-					connection = 'scm:git:https://github.com/ortus-boxlang/boxlang.git'
-					developerConnection = 'scm:git:ssh://github.com/ortus-boxlang/boxlang.git'
-					url = 'https://github.com/ortus-boxlang/boxlang'
+					connection = 'scm:git:https://github.com/ortus-boxlang/boxlang-miniserver.git'
+					developerConnection = 'scm:git:ssh://github.com/ortus-boxlang/boxlang-miniserver.git'
+					url = 'https://github.com/ortus-boxlang/boxlang-miniserver'
 				}
 				developers{
 					developer {
@@ -265,7 +265,7 @@ publishing {
         }
 		maven {
 			name = "GitHubPackages"
-			url = "https://maven.pkg.github.com/ortus-boxlang/boxlang"
+			url = "https://maven.pkg.github.com/ortus-boxlang/boxlang-miniserver"
 			credentials {
 				username = System.getenv( "GITHUB_ACTOR" )
 				password = System.getenv( "GITHUB_TOKEN" )
