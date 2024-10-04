@@ -73,7 +73,8 @@ public class MiniServer {
 		// Setup default values
 		int					port		= Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", "8080" ) );
 		String				webRoot		= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
-		boolean				debug		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_DEBUG", "false" ) );
+		// DO NOT DEFAULT THIS.
+		Boolean				debug		= Boolean.parseBoolean( envVars.get( "BOXLANG_DEBUG" ) );
 		String				host		= envVars.getOrDefault( "BOXLANG_HOST", "localhost" );
 		String				configPath	= envVars.getOrDefault( "BOXLANG_CONFIG", null );
 		String				serverHome	= envVars.getOrDefault( "BOXLANG_HOME", null );
@@ -118,7 +119,9 @@ public class MiniServer {
 		System.out.println( "- Web Root: " + absWebRoot.toString() );
 		System.out.println( "- Host: " + host );
 		System.out.println( "- Port: " + port );
-		System.out.println( "- Debug: " + debug );
+		if ( debug != null ) {
+			System.out.println( "- Debug: " + debug );
+		}
 		System.out.println( "- Config Path: " + configPath );
 		System.out.println( "- Server Home: " + serverHome );
 		System.out.println( "+ Starting BoxLang Runtime..." );
