@@ -10,6 +10,10 @@ import io.undertow.websockets.WebSocketConnectionCallback;
 import io.undertow.websockets.WebSocketProtocolHandshakeHandler;
 import io.undertow.websockets.core.WebSocketChannel;
 import io.undertow.websockets.core.WebSockets;
+import io.undertow.websockets.core.protocol.Handshake;
+import io.undertow.websockets.core.protocol.version07.Hybi07Handshake;
+import io.undertow.websockets.core.protocol.version08.Hybi08Handshake;
+import io.undertow.websockets.core.protocol.version13.Hybi13Handshake;
 import io.undertow.websockets.spi.WebSocketHttpExchange;
 import ortus.boxlang.web.MiniServer;
 
@@ -20,7 +24,14 @@ public class WebsocketHandler extends PathHandler {
 
 	public WebsocketHandler( final HttpHandler next, String prefixPath ) {
 		super( next );
+
+		Set<Handshake> handshakes = new HashSet<>();
+		handshakes.add( new Hybi13Handshake( Set.of( "v12.stomp", "v11.stomp", "v10.stomp" ), false ) );
+		handshakes.add( new Hybi08Handshake( Set.of( "v12.stomp", "v11.stomp", "v10.stomp" ), false ) );
+		handshakes.add( new Hybi07Handshake( Set.of( "v12.stomp", "v11.stomp", "v10.stomp" ), false ) );
+
 		this.webSocketProtocolHandshakeHandler = new WebSocketProtocolHandshakeHandler(
+		    handshakes,
 		    new WebSocketConnectionCallback() {
 
 			    @Override
