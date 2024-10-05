@@ -1,3 +1,20 @@
+/**
+ * [BoxLang]
+ *
+ * Copyright [2023] [Ortus Solutions, Corp]
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package ortus.boxlang.web.handlers;
 
 import java.io.IOException;
@@ -9,18 +26,35 @@ import io.undertow.server.handlers.resource.Resource;
 import io.undertow.server.handlers.resource.ResourceManager;
 import io.undertow.util.CanonicalPathUtils;
 
+/**
+ * The WelcomeFileHandler is an Undertow HttpHandler that serves welcome files.
+ */
 public class WelcomeFileHandler implements HttpHandler {
 
 	private final HttpHandler		next;
 	private final ResourceManager	resourceManager;
 	private List<String>			welcomeFiles;
 
+	/**
+	 * Create a new WelcomeFileHandler
+	 *
+	 * @param next            The next HttpHandler
+	 * @param resourceManager The ResourceManager
+	 * @param welcomeFiles    The list of welcome files
+	 */
 	public WelcomeFileHandler( final HttpHandler next, ResourceManager resourceManager, List<String> welcomeFiles ) {
 		this.next				= next;
 		this.resourceManager	= resourceManager;
 		this.welcomeFiles		= welcomeFiles;
 	}
 
+	/**
+	 * Handle the request
+	 *
+	 * @param exchange The HttpServerExchange
+	 *
+	 * @throws Exception
+	 */
 	@Override
 	public void handleRequest( final HttpServerExchange exchange ) throws Exception {
 		Resource resource = resourceManager.getResource( canonicalize( exchange.getRelativePath() ) );
@@ -37,9 +71,20 @@ public class WelcomeFileHandler implements HttpHandler {
 		}
 
 		next.handleRequest( exchange );
-
 	}
 
+	/**
+	 * Get the index files
+	 *
+	 * @param exchange        The HttpServerExchange
+	 * @param resourceManager The ResourceManager
+	 * @param base            The base path
+	 * @param possible        The list of possible index files
+	 *
+	 * @return
+	 *
+	 * @throws IOException
+	 */
 	private Resource getIndexFiles( HttpServerExchange exchange, ResourceManager resourceManager, final String base,
 	    List<String> possible ) throws IOException {
 		if ( possible == null ) {
@@ -60,6 +105,13 @@ public class WelcomeFileHandler implements HttpHandler {
 		return null;
 	}
 
+	/**
+	 * Canonicalize the path
+	 *
+	 * @param s The path
+	 *
+	 * @return The canonicalized path
+	 */
 	private String canonicalize( String s ) {
 		return CanonicalPathUtils.canonicalize( s );
 	}

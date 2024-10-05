@@ -38,14 +38,32 @@ import ortus.boxlang.web.exchange.BoxHTTPUndertowExchange;
  */
 public class BLHandler implements HttpHandler {
 
+	/**
+	 * The pattern to match the path info
+	 */
 	static final Pattern	pattern	= Pattern.compile( "^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$" );
 
+	/**
+	 * The web root
+	 */
 	private String			webRoot;
 
+	/**
+	 * Create a new BLHandler
+	 *
+	 * @param webRoot The web root
+	 */
 	public BLHandler( String webRoot ) {
 		this.webRoot = webRoot;
 	}
 
+	/**
+	 * Handle the request
+	 *
+	 * @param exchange The HttpServerExchange
+	 *
+	 * @throws Exception If an error occurs
+	 */
 	@Override
 	public void handleRequest( io.undertow.server.HttpServerExchange exchange ) throws Exception {
 		if ( exchange.isInIoThread() ) {
