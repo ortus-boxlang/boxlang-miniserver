@@ -67,7 +67,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * Request attributes
 	 */
-	private Map<String, Object>		attributes	= new HashMap<String, Object>();
+	private Map<String, Object>		attributes	= new HashMap<>();
 
 	/**
 	 * Undertow response channel
@@ -92,7 +92,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * The list of file uploads
 	 */
-	List<FileUpload>				fileUploads	= new ArrayList<FileUpload>();
+	List<FileUpload>				fileUploads	= new ArrayList<>();
 
 	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
