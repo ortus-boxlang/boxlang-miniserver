@@ -99,7 +99,10 @@ public class WebsocketHandler extends PathHandler {
 		if ( channel == null || !channel.isOpen() ) {
 			return;
 		}
-		WebSockets.sendText( message, channel, null );
+		// I'm not clear if Undertow handles this, but just to be safe only send one message to a channel at once to avoid threading issues
+		synchronized ( channel ) {
+			WebSockets.sendText( message, channel, null );
+		}
 	}
 
 	/**
