@@ -67,7 +67,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 
 	public static final AttachmentKey<List<Object>>	WEBSOCKET_REQUEST_DETAILS	= AttachmentKey.create( List.class );
 
-	private HttpServerExchange						exchange;
+	private HttpServerExchange						initialExchange;
 	private HttpHandler								next;
 	private WebSocketChannel						channel;
 
@@ -79,9 +79,9 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	 * @param channel  the WebSocketChannel
 	 */
 	public WebsocketReceiveListener( HttpServerExchange exchange, HttpHandler next, WebSocketChannel channel ) {
-		this.exchange	= exchange;
-		this.next		= next;
-		this.channel	= channel;
+		this.initialExchange	= exchange;
+		this.next				= next;
+		this.channel			= channel;
 
 		dispatchRequest( "onConnect", List.of( channel ) );
 	}
@@ -106,7 +106,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	@Override
 	protected void onFullTextMessage( WebSocketChannel channel, BufferedTextMessage message )
 	    throws IOException {
-		dispatchRequest( "onFullTextMessage", List.of( message, channel ) );
+		dispatchRequest( "onFullTextMessage", List.of( message.getData(), channel ) );
 	}
 
 	/**
@@ -143,11 +143,10 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 		}
 
 		try {
-			// TODO: make configurable
 			String						newUri		= "/WebSocket.cfc?" + "method=onProcess&WSMethod=" + method;
 
 			final DefaultByteBufferPool	bufferPool	= new DefaultByteBufferPool( false, 1024, 0, 0 );
-			MockServerConnection		connection	= new MockServerConnection( bufferPool );
+			MockServerConnection		connection	= new MockServerConnection( bufferPool, initialExchange );
 
 			// Create a new HttpServerExchange for the new request
 			HttpServerExchange			newExchange	= new HttpServerExchange( connection );
@@ -156,16 +155,16 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 			newExchange.putAttachment( WEBSOCKET_REQUEST_DETAILS, requestDetails );
 
 			// copy headers (like cookies) any from the original request (except Upgrade)
-			this.exchange.getRequestHeaders().forEach( header -> {
+			this.initialExchange.getRequestHeaders().forEach( header -> {
 				if ( !header.getHeaderName().toString().equalsIgnoreCase( "Upgrade" ) ) {
 					newExchange.getRequestHeaders().add( header.getHeaderName(), header.getFirst() );
 				}
 			} );
-			newExchange.setRequestMethod( this.exchange.getRequestMethod() );
-			newExchange.setProtocol( this.exchange.getProtocol() );
-			newExchange.setRequestScheme( this.exchange.getRequestScheme() );
-			newExchange.setSourceAddress( this.exchange.getSourceAddress() );
-			newExchange.setDestinationAddress( this.exchange.getDestinationAddress() );
+			newExchange.setRequestMethod( this.initialExchange.getRequestMethod() );
+			newExchange.setProtocol( this.initialExchange.getProtocol() );
+			newExchange.setRequestScheme( this.initialExchange.getRequestScheme() );
+			newExchange.setSourceAddress( this.initialExchange.getSourceAddress() );
+			newExchange.setDestinationAddress( this.initialExchange.getDestinationAddress() );
 
 			final StringBuilder sb = new StringBuilder();
 			try {
@@ -175,7 +174,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 			}
 
 			// This sets the requestpath, relativepath, querystring, and parses the query parameters
-			newExchange.setRequestURI( this.exchange.getRequestScheme() + "://" + this.exchange.getHostAndPort() + newUri, true );
+			newExchange.setRequestURI( this.initialExchange.getRequestScheme() + "://" + this.initialExchange.getHostAndPort() + newUri, true );
 
 			// Call the handler for the new URI
 			HttpHandler exchangeSetter = new HttpHandler() {
@@ -183,16 +182,15 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 				@Override
 				public void handleRequest( final HttpServerExchange exchange ) throws Exception {
 
-					HttpServerExchange currentExchange = MiniServer.getCurrentExchange();
 					try {
 						// This allows the exchange to be available to the thread.
-						MiniServer.setCurrentExchange( newExchange );
-						next.handleRequest( newExchange );
+						MiniServer.setCurrentExchange( exchange );
+						next.handleRequest( exchange );
 					} catch ( Exception e ) {
 						e.printStackTrace();
 					} finally {
 						// Clean up after
-						MiniServer.setCurrentExchange( currentExchange );
+						MiniServer.setCurrentExchange( null );
 					}
 				}
 
@@ -201,13 +199,11 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 					return "Websocket Exchange Setter Handler";
 				}
 			};
-			if ( exchange.isInIoThread() ) {
-				exchange.dispatch( exchangeSetter );
-			} else {
-				exchangeSetter.handleRequest( exchange );
-			}
+
+			// We are in an IO thread, so we can dispatch the request directly to the worker pool
+			newExchange.dispatch( exchangeSetter );
 		} catch ( Exception e ) {
-			System.out.println( "Error dispatching request: " + e.getMessage() );
+			System.out.println( "Error dispatching websocket request: " + e.getMessage() );
 			e.printStackTrace();
 		}
 
@@ -219,9 +215,11 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 		private final ByteBufferPool	bufferPool;
 		private SSLSessionInfo			sslSessionInfo;
 		private XnioBufferPoolAdaptor	poolAdaptor;
+		private HttpServerExchange		initialExchange;
 
-		private MockServerConnection( ByteBufferPool bufferPool ) {
-			this.bufferPool = bufferPool;
+		private MockServerConnection( ByteBufferPool bufferPool, HttpServerExchange initialExchange ) {
+			this.bufferPool			= bufferPool;
+			this.initialExchange	= initialExchange;
 		}
 
 		@Override
@@ -240,7 +238,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 
 		@Override
 		public XnioWorker getWorker() {
-			return null;
+			return initialExchange.getConnection().getWorker();
 		}
 
 		@Override
@@ -343,12 +341,12 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 
 		@Override
 		public ConduitStreamSinkChannel getSinkChannel() {
-			return new ConduitStreamSinkChannel( Configurable.EMPTY, new DummyStreamSinkConduit() );
+			return new ConduitStreamSinkChannel( Configurable.EMPTY, new DummyStreamSinkConduit( initialExchange ) );
 		}
 
 		@Override
 		public ConduitStreamSourceChannel getSourceChannel() {
-			return new ConduitStreamSourceChannel( Configurable.EMPTY, new DummyStreamSourceConduit() );
+			return new ConduitStreamSourceChannel( Configurable.EMPTY, new DummyStreamSourceConduit( initialExchange ) );
 		}
 
 		@Override
@@ -396,6 +394,12 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	}
 
 	private static class DummyStreamSinkConduit implements StreamSinkConduit {
+
+		private HttpServerExchange initialExchange;
+
+		public DummyStreamSinkConduit( HttpServerExchange initialExchange ) {
+			this.initialExchange = initialExchange;
+		}
 
 		@Override
 		public int write( ByteBuffer src ) throws IOException {
@@ -449,8 +453,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 
 		@Override
 		public XnioWorker getWorker() {
-			// Return a dummy value or null
-			return null;
+			return initialExchange.getConnection().getWorker();
 		}
 
 		@Override
@@ -518,6 +521,12 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	}
 
 	private static class DummyStreamSourceConduit implements StreamSourceConduit {
+
+		private HttpServerExchange initialExchange;
+
+		public DummyStreamSourceConduit( HttpServerExchange initialExchange ) {
+			this.initialExchange = initialExchange;
+		}
 
 		@Override
 		public long transferTo( long position, long count, FileChannel target ) throws IOException {
@@ -597,7 +606,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 
 		@Override
 		public XnioWorker getWorker() {
-			return null;
+			return initialExchange.getConnection().getWorker();
 		}
 	}
 }
