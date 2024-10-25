@@ -60,7 +60,7 @@ dependencies {
 
 	// https://mvnrepository.com/artifact/io.undertow/undertow-core/2.3.12.Final
 	implementation 'io.undertow:undertow-core:2.3.18.Final'
-    implementation 'io.undertow:undertow-websockets-jsr:2.3.17.Final'
+    implementation 'io.undertow:undertow-websockets-jsr:2.3.18.Final'
 
     // Testing Dependencies
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
