@@ -25,6 +25,8 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.resource.Resource;
 import io.undertow.server.handlers.resource.ResourceManager;
 import io.undertow.util.CanonicalPathUtils;
+import io.undertow.util.RedirectBuilder;
+import io.undertow.util.StatusCodes;
 
 /**
  * The WelcomeFileHandler is an Undertow HttpHandler that serves welcome files.
@@ -59,6 +61,15 @@ public class WelcomeFileHandler implements HttpHandler {
 	public void handleRequest( final HttpServerExchange exchange ) throws Exception {
 		Resource resource = resourceManager.getResource( canonicalize( exchange.getRelativePath() ) );
 		if ( resource != null && resource.isDirectory() ) {
+			// First ensure that the directory has a trailing slash, and if not, redirect it
+			if ( !exchange.getRequestPath().endsWith( "/" ) ) {
+				exchange.setStatusCode( StatusCodes.FOUND );
+				exchange.getResponseHeaders().put( io.undertow.util.Headers.LOCATION,
+				    RedirectBuilder.redirect( exchange, exchange.getRelativePath() + "/", true ) );
+				exchange.endExchange();
+				return;
+			}
+			// if it's a directory and we have the trailing slash, then let's look for welcome files
 			Resource indexResource = getIndexFiles( exchange, resourceManager, resource.getPath(), welcomeFiles );
 			if ( indexResource != null ) {
 				String newPath = indexResource.getPath();
