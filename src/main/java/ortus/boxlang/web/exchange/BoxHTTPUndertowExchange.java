@@ -77,7 +77,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * PrintWriter for the response that wraps the channel
 	 */
-	PrintWriter						writer;
+	WhitespaceManagingPrintWriter	writer;
 
 	/**
 	 * The Undertow exchange for this request
@@ -177,6 +177,8 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 				setResponseHeader( "Content-Type", "text/html;charset=UTF-8" );
 			}
 
+			// Update this in case the content type has changed
+			writer.setWhitespaceCompressionEnabled( context.isWhitespaceCompressionEnabled() );
 			writer.flush();
 			getResponseChannel().flush();
 		} catch ( IOException e ) {
@@ -527,7 +529,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	public PrintWriter getResponseWriter() {
 		if ( writer == null ) {
 			OutputStream outputStream = new BlockingBufferedOutputStream( getResponseChannel() );
-			writer = new PrintWriter( outputStream, false );
+			writer = new WhitespaceManagingPrintWriter( new PrintWriter( outputStream, false ), context.isWhitespaceCompressionEnabled() );
 		}
 		return writer;
 	}
