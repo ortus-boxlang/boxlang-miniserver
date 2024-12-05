@@ -1,0 +1,9 @@
+class{
+	this.sessionManagement = true;
+	this.sessionCookie = {
+		secure: true,
+		httpOnly: true,
+		sameSite: true,
+		timeout: createTimeSpan( 0, 0, 20, 0 )
+	}
+}
