@@ -107,6 +107,7 @@ jar {
 }
 
 shadowJar {
+	archiveClassifier = ""
     destinationDirectory = file( "build/distributions" )
 	mergeServiceFiles()
 	exclude "schema/**"
@@ -236,13 +237,6 @@ publishing {
 						id = "jbeers"
 						name = "Jacob Beers"
 						email = "jbeers@ortussolutions.com"
-						organization = "Ortus Solutions, Corp"
-						organizationUrl = "https://www.ortussolutions.com"
-					}
-					developer {
-						id = "gpickin"
-						name = "Gavin Pickin"
-						email = "gavin@ortussolutions.com"
 						organization = "Ortus Solutions, Corp"
 						organizationUrl = "https://www.ortussolutions.com"
 					}
