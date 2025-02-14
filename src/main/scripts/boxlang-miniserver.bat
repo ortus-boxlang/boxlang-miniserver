@@ -63,7 +63,7 @@ set CMD_LINE_ARGS=%*
 :execute
 @rem Setup the command line
 
-set CLASSPATH=%APP_HOME%\lib\boxlang-miniserver-1.0.0-all.jar
+set CLASSPATH=%APP_HOME%\lib\boxlang-miniserver-1.0.0.jar
 
 @rem Execute boxlang-miniserver
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %BOXLANG_MINISERVER_OPTS%  -jar "%CLASSPATH%" %CMD_LINE_ARGS%
