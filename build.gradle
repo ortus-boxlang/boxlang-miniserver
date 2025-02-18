@@ -382,13 +382,14 @@ project.ext.bumpVersion = {
 	boolean minor = false,
 	boolean patch = false,
 	boolean beta = false,
+	boolean rc = false,
 	property = "version" ->
 
 	def propertiesFile = file( './gradle.properties' );
 	def properties = new Properties();
 
 	properties.load( propertiesFile.newDataInputStream() )
-	def versionTarget = major ? 0 : minor ? 1 : 2
+	def versionTarget = major ? 0 : minor ? 1 : beta ? 2 : 3
 
 	def currentVersion = properties.getProperty( property )
 	def versionParts = currentVersion.split( '\\.' )
@@ -409,6 +410,8 @@ project.ext.bumpVersion = {
 		// Now we get the beta number
 		def betaNumber = betaString.split( 'beta' )[ 1 ].toInteger() + 1
 		newVersion = currentVersion.split( '-' )[ 0 ] + "-beta${betaNumber}"
+	} else if( rc ){
+		newVersion = "${versionParts[ 0 ]}.${versionParts[ 1 ]}.${versionParts[ 2 ]}.${newPathVersion}"
 	}
 
 	properties.setProperty( property, newVersion )
@@ -422,8 +425,8 @@ project.ext.bumpVersion = {
  */
 task bumpMajorVersion {
 	doLast{
-		bumpVersion( true, false, false, false, "version" )
-		bumpVersion( true, false, false, false, "boxlangVersion" )
+		bumpVersion( true, false, false, false, false, "version" )
+		bumpVersion( true, false, false, false, false, "boxlangVersion" )
 	}
 }
 
@@ -432,8 +435,8 @@ task bumpMajorVersion {
  */
 task bumpMinorVersion {
 	doLast{
-		bumpVersion( false, true, false, false, "version" )
-		bumpVersion( false, true, false, false, "boxlangVersion" )
+		bumpVersion( false, true, false, false, false, "version" )
+		bumpVersion( false, true, false, false, false, "boxlangVersion" )
 	}
 }
 
@@ -442,8 +445,8 @@ task bumpMinorVersion {
  */
 task bumpPatchVersion {
 	doLast{
-		bumpVersion( false, false, true, false, "version" )
-		bumpVersion( false, false, true, false, "boxlangVersion" )
+		bumpVersion( false, false, true, false, false, "version" )
+		bumpVersion( false, false, true, false, false, "boxlangVersion" )
 	}
 }
 
@@ -452,7 +455,16 @@ task bumpPatchVersion {
  */
 task bumpBetaVersion {
 	doLast{
-		bumpVersion( false, false, false, true, "version" )
-		bumpVersion( false, false, false, true, "boxlangVersion" )
+		bumpVersion( false, false, false, true, false, "version" )
+		bumpVersion( false, false, false, true, false, "boxlangVersion" )
+	}
+}
+/**
+ * Bump the rc version number
+ */
+task bumpRCVersion {
+	doLast{
+		bumpVersion( false, false, false, false, true, "version" )
+		bumpVersion( false, false, false, false, true, "boxlangVersion" )
 	}
 }
