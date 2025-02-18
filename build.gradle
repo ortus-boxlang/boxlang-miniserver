@@ -393,9 +393,7 @@ project.ext.bumpVersion = {
 
 	def currentVersion = properties.getProperty( property )
 	def versionParts = currentVersion.split( '\\.' )
-	if( !beta ){
-		def newPathVersion = versionParts[ versionTarget ].toInteger() + 1
-	}
+	def newPathVersion = versionParts[ versionTarget ].toInteger() + 1
 	def newVersion = '';
 
 	if( patch ){
