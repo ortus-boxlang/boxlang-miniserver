@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2025-02-18
+
 ## [1.0.0-beta27] - 2025-01-31
 
 ## [1.0.0-beta26] - 2025-01-17
@@ -66,7 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded to Undertow latest due to security fix
 - First iteration of this module
 
-[Unreleased]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.0.0-beta27...HEAD
+[Unreleased]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.0.0-rc.1...HEAD
+
+[1.0.0-rc.1]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.0.0-beta27...v1.0.0-rc.1
 
 [1.0.0-beta27]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.0.0-beta26...v1.0.0-beta27
 
