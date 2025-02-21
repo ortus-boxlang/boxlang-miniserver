@@ -205,7 +205,7 @@ public class MiniServer {
 		// Startup the server
 		System.out.println(
 		    "+ BoxLang MiniServer started in " + ( System.currentTimeMillis() - sTime ) + "ms" +
-		        " at: http://" + host + ":" + port
+		        " at: http://" + host.replace( "0.0.0.0", "localhost" ) + ":" + port
 		);
 		System.out.println( "Press Ctrl+C to stop the server." );
 		BLServer.start();
