@@ -48,7 +48,7 @@ import ortus.boxlang.web.handlers.WelcomeFileHandler;
  * --port <port> - The port to listen on. Default is 8080.
  * --webroot <path> - The path to the webroot. Default is {@code BOXLANG_HOME/www}
  * --debug - Enable debug mode or not. Default is false.
- * --host <host> - The host to listen on. Default is {@code localhost}.
+ * --host <host> - The host to listen on. Default is {@code 0.0.0.0}.
  *
  * Examples:
  *
@@ -84,7 +84,7 @@ public class MiniServer {
 		String				webRoot		= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
 		// We don't do this one, as it is done by the runtime itself.
 		Boolean				debug		= null;
-		String				host		= envVars.getOrDefault( "BOXLANG_HOST", "localhost" );
+		String				host		= envVars.getOrDefault( "BOXLANG_HOST", "0.0.0.0" );
 		String				configPath	= envVars.getOrDefault( "BOXLANG_CONFIG", null );
 		String				serverHome	= envVars.getOrDefault( "BOXLANG_HOME", null );
 
@@ -205,7 +205,7 @@ public class MiniServer {
 		// Startup the server
 		System.out.println(
 		    "+ BoxLang MiniServer started in " + ( System.currentTimeMillis() - sTime ) + "ms" +
-		        " at: http://" + host + ":" + port
+		        " at: http://" + host.replace( "0.0.0.0", "localhost" ) + ":" + port
 		);
 		System.out.println( "Press Ctrl+C to stop the server." );
 		BLServer.start();
