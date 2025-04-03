@@ -54,6 +54,7 @@ import io.undertow.util.HeaderMap;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
 import io.undertow.util.LocaleUtils;
+import io.undertow.util.StatusCodes;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.exceptions.BoxRuntimeException;
 import ortus.boxlang.web.context.WebRequestBoxContext;
@@ -612,5 +613,12 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public boolean isResponseStarted() {
 		return exchange.isResponseStarted();
+	}
+
+	@Override
+	public void reset() {
+		resetResponseBuffer();
+		exchange.getResponseHeaders().clear();
+		exchange.setStatusCode( StatusCodes.OK );
 	}
 }
