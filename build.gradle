@@ -31,7 +31,7 @@ sourceCompatibility = jdkVersion
 targetCompatibility = jdkVersion
 ext {
 	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
-	branch = System.getenv( 'BRANCH' ) ?: 'development'
+	branch = System.getenv( 'BRANCH' ) ?: 'main'
 }
 
 if (branch == 'development') {
