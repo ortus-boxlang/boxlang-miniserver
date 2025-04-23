@@ -63,7 +63,8 @@ public class FrameworkRewritesBuilder implements HandlerBuilder {
 			@Override
 			public HttpHandler wrap( HttpHandler toWrap ) {
 				List<PredicatedHandler> ph = PredicatedHandlersParser.parse(
-				    "not path(/favicon.ico)"
+				    "not regex('^/(ws)/.*')"
+				        + "and not path(/favicon.ico)"
 				        + " and not is-file"
 				        + " and not is-directory -> rewrite( '/" + fileName + "%{DECODED_REQUEST_PATH}' )",
 				    MiniServer.class.getClassLoader()
