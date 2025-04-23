@@ -37,6 +37,7 @@ import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.web.handlers.BLHandler;
+import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
 
@@ -72,21 +73,27 @@ public class MiniServer {
 	public static WebsocketHandler							websocketHandler;
 
 	/**
+	 * The resource manager for the server. Placed here for eacy access from predicates
+	 */
+	public static ResourceManager							resourceManager;
+	/**
 	 * ThreadLocal to store the current HttpServerExchange.
 	 */
 	private static final ThreadLocal<HttpServerExchange>	currentExchange	= new ThreadLocal<>();
 
 	public static void main( String[] args ) {
-		Map<String, String>	envVars		= System.getenv();
+		Map<String, String>	envVars			= System.getenv();
 
 		// Setup Defaults, and grab environment variables
-		int					port		= Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", "8080" ) );
-		String				webRoot		= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
+		int					port			= Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", "8080" ) );
+		String				webRoot			= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
 		// We don't do this one, as it is done by the runtime itself.
-		Boolean				debug		= null;
-		String				host		= envVars.getOrDefault( "BOXLANG_HOST", "0.0.0.0" );
-		String				configPath	= envVars.getOrDefault( "BOXLANG_CONFIG", null );
-		String				serverHome	= envVars.getOrDefault( "BOXLANG_HOME", null );
+		Boolean				debug			= null;
+		String				host			= envVars.getOrDefault( "BOXLANG_HOST", "0.0.0.0" );
+		String				configPath		= envVars.getOrDefault( "BOXLANG_CONFIG", null );
+		String				serverHome		= envVars.getOrDefault( "BOXLANG_HOME", null );
+		Boolean				rewrites		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_REWRITES", "false" ) );
+		String				rewriteFileName	= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", "index.bxm" );
 
 		// Grab --port and --webroot from args, if they exist
 		// If --debug is set, enable debug mode
@@ -108,6 +115,13 @@ public class MiniServer {
 			}
 			if ( args[ i ].equalsIgnoreCase( "--serverHome" ) || args[ i ].equalsIgnoreCase( "-s" ) ) {
 				serverHome = args[ ++i ];
+			}
+			if ( args[ i ].equalsIgnoreCase( "--rewrites" ) || args[ i ].equalsIgnoreCase( "-r" ) ) {
+				rewrites = true;
+				// check if the next arg exists and is not a flag and is a file name
+				if ( i + 1 < args.length && !args[ i + 1 ].startsWith( "-" ) ) {
+					rewriteFileName = args[ ++i ];
+				}
 			}
 		}
 
@@ -140,8 +154,8 @@ public class MiniServer {
 		    "  - BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: "
 		        + versionInfo.getAsString( Key.of( "buildDate" ) )
 		        + ")" );
-		Undertow.Builder	builder			= Undertow.builder();
-		ResourceManager		resourceManager	= new PathResourceManager( absWebRoot );
+		Undertow.Builder builder = Undertow.builder();
+		resourceManager = new PathResourceManager( absWebRoot );
 
 		System.out.println( "  - Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
 
@@ -164,6 +178,11 @@ public class MiniServer {
 		httpHandler			= new WebsocketHandler( httpHandler, "/ws" );
 		websocketHandler	= ( WebsocketHandler ) httpHandler;
 		System.out.println( "+ WebSocket Server started" );
+
+		if ( rewrites ) {
+			System.out.println( "+ Enabling rewrites to /" + rewriteFileName );
+			httpHandler = new FrameworkRewritesBuilder().build( Map.of( "fileName", rewriteFileName ) ).wrap( httpHandler );
+		}
 
 		final HttpHandler finalHttpHandler = httpHandler;
 		httpHandler = new HttpHandler() {
