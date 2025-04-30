@@ -146,7 +146,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public void addResponseCookie( BoxCookie cookie ) {
 		if ( !isResponseStarted() ) {
-			Cookie c = new CookieImpl( cookie.getName(), cookie.getValue() );
+			Cookie c = new CookieImpl( cookie.getName(), cookie.getEncodedValue() );
 			if ( cookie.getDomain() != null )
 				c.setDomain( cookie.getDomain() );
 			if ( cookie.getPath() != null )
@@ -172,11 +172,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	@Override
 	public void flushResponseBuffer() {
 		try {
-
-			var contentType = getResponseHeader( "Content-Type" );
-			if ( contentType == null || contentType.isEmpty() ) {
-				setResponseHeader( "Content-Type", "text/html;charset=UTF-8" );
-			}
+			ensureResponseContentType();
 
 			// Update this in case the content type has changed
 			writer.setWhitespaceCompressionEnabled( context.isWhitespaceCompressionEnabled() );
@@ -241,7 +237,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 		BoxCookie[] boxCookies = new BoxCookie[ cookies.size() ];
 		for ( int i = 0; i < cookies.size(); i++ ) {
 			Cookie	cookie	= cookies.get( i );
-			var		c		= new BoxCookie( cookie.getName(), cookie.getValue() );
+			var		c		= BoxCookie.fromEncoded( cookie.getName(), cookie.getValue() );
 			if ( cookie.getDomain() != null )
 				c.setDomain( cookie.getDomain() );
 			if ( cookie.getPath() != null )
