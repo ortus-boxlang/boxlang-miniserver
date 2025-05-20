@@ -363,7 +363,8 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 							        fileUploads.add( new FileUpload( Key.of( key ), file, f.getFileName() ) );
 							        return file.toString();
 						        } else {
-							        return f.getValue();
+							        // file upload form fields left empty, return empty string
+							        return "";
 						        }
 					        } else {
 						        return f.getValue();
