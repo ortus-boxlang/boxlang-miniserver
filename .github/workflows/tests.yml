@@ -42,11 +42,6 @@ jobs:
           distribution: "temurin"
           java-version: ${{ matrix.jdkVersion }}
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: "8.7"
-
       # - name: Setup Database and Fixtures
       #   run: |
       #     sudo systemctl start mysql.service
@@ -73,8 +68,8 @@ jobs:
 
       - name: Test Module
         run: |
-          gradle downloadBoxLang
-          gradle test --stacktrace --console=plain
+          ./gradlew downloadBoxLang
+          ./gradlew test --stacktrace --console=plain
 
       - name: Upload Test Results
         if: always()
