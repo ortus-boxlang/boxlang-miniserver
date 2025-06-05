@@ -144,20 +144,51 @@ task createDistributionFile( type: Zip ){
 	}
 	archiveFileName = "boxlang-miniserver-${version}.zip"
 	doLast {
-    Files.copy( file( "build/libs/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), file( "build/distributions/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 
-    file( "build/evergreen" ).mkdirs()
-    if( branch == 'development' ){
-        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
-        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
-    } else {
-        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-latest.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
-    }
+		// Generate checksums for all zip and jar files in distributions folder
+		file( "build/distributions" ).listFiles().each { file ->
+			if ( file.name.endsWith( '.zip' ) || file.name.endsWith( '.jar' ) ) {
+				generateChecksum( file, 'SHA-256' )
+				generateChecksum( file, 'MD5' )
+			}
+		}
+			
+	    Files.copy( file( "build/libs/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), file( "build/distributions/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+
+	    file( "build/evergreen" ).mkdirs()
+	    if( branch == 'development' ){
+	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+	        // Copy checksums
+			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip.sha-256" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.zip.sha-256" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip.md5" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.zip.md5" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar.sha-256" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar.sha-256" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar.md5" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar.md5" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+	    } else {
+	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-latest.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+	    }
 
 		println "+ Distribution file has been created"
 	}
 }
 build.finalizedBy( createDistributionFile )
+
+/**
+ * Generate checksums for the given file using the specified algorithm
+
+ * @param file The file to generate the checksum for
+ * @param algorithm The algorithm to use (e.g., "SHA-256", "MD5")
+ */
+def generateChecksum( File file, String algorithm ) {
+	def digest = java.security.MessageDigest.getInstance( algorithm )
+	file.eachByte( 4096 ) { bytes, size ->
+		digest.update( bytes, 0, size )
+	}
+	def checksum = digest.digest().collect { String.format( '%02x', it ) }.join()
+
+	def checksumFile = new File( file.parent, "${file.name}.${algorithm.toLowerCase()}" )
+	checksumFile.text = "${checksum}  ${file.name}\n"
+}
 
 /**
  * Publish the artifacts to the local maven repository
