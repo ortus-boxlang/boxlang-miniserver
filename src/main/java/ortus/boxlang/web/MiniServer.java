@@ -46,16 +46,21 @@ import ortus.boxlang.web.handlers.WelcomeFileHandler;
  *
  * The following command line arguments are supported:
  *
- * --port <port> - The port to listen on. Default is 8080.
- * --webroot <path> - The path to the webroot. Default is {@code BOXLANG_HOME/www}
- * --debug - Enable debug mode or not. Default is false.
+ * --help, -h - Show help information and exit.
+ * --port, -p <port> - The port to listen on. Default is 8080.
+ * --webroot, -w <path> - The path to the webroot. Default is {@code BOXLANG_HOME/www}
+ * --debug, -d - Enable debug mode or not. Default is false.
  * --host <host> - The host to listen on. Default is {@code 0.0.0.0}.
+ * --configPath, -c <path> - Path to BoxLang configuration file.
+ * --serverHome, -s <path> - BoxLang server home directory.
+ * --rewrites, -r [file] - Enable URL rewrites with optional rewrite file name.
  *
  * Examples:
  *
  * <pre>
  * java -jar boxlang-miniserver.jar --webroot /path/to/webroot --debug
  * java -jar boxlang-miniserver.jar --port 80 --webroot /var/www
+ * java -jar boxlang-miniserver.jar --help
  * </pre>
  *
  * This will start the BoxLang MiniServer on port 8080, serving files from {@code /path/to/webroot}, and enable debug mode.
@@ -95,9 +100,12 @@ public class MiniServer {
 		Boolean				rewrites		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_REWRITES", "false" ) );
 		String				rewriteFileName	= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", "index.bxm" );
 
-		// Grab --port and --webroot from args, if they exist
-		// If --debug is set, enable debug mode
+		// Grab command line arguments
 		for ( int i = 0; i < args.length; i++ ) {
+			if ( args[ i ].equalsIgnoreCase( "--help" ) || args[ i ].equalsIgnoreCase( "-h" ) ) {
+				printHelp();
+				System.exit( 0 );
+			}
 			if ( args[ i ].equalsIgnoreCase( "--port" ) || args[ i ].equalsIgnoreCase( "-p" ) ) {
 				port = Integer.parseInt( args[ ++i ] );
 			}
@@ -107,7 +115,7 @@ public class MiniServer {
 			if ( args[ i ].equalsIgnoreCase( "--debug" ) || args[ i ].equalsIgnoreCase( "-d" ) ) {
 				debug = true;
 			}
-			if ( args[ i ].equalsIgnoreCase( "--host" ) || args[ i ].equalsIgnoreCase( "-h" ) ) {
+			if ( args[ i ].equalsIgnoreCase( "--host" ) ) {
 				host = args[ ++i ];
 			}
 			if ( args[ i ].equalsIgnoreCase( "--configPath" ) || args[ i ].equalsIgnoreCase( "-c" ) ) {
@@ -255,6 +263,66 @@ public class MiniServer {
 	 */
 	public static WebsocketHandler getWebsocketHandler() {
 		return websocketHandler;
+	}
+
+	/**
+	 * Prints help information for the BoxLang MiniServer command-line interface.
+	 */
+	private static void printHelp() {
+		System.out.println( "🚀 BoxLang MiniServer - A fast, lightweight, pure Java web server for BoxLang applications" );
+		System.out.println();
+		System.out.println( "📋 USAGE:" );
+		System.out.println( "  boxlang-miniserver [OPTIONS]  # 🔧 Using OS binary" );
+		System.out.println( "  java -jar boxlang-miniserver.jar [OPTIONS] # 🐍 Using Java JAR" );
+		System.out.println();
+		System.out.println( "⚙️  OPTIONS:" );
+		System.out.println( "  -h, --help              ❓ Show this help message and exit" );
+		System.out.println( "  -p, --port <PORT>       🌐 Port to listen on (default: 8080)" );
+		System.out.println( "  -w, --webroot <PATH>    📁 Path to the webroot directory (default: current directory)" );
+		System.out.println( "  -d, --debug             🐛 Enable debug mode (true/false, default: false)" );
+		System.out.println( "      --host <HOST>       🏠 Host to bind to (default: 0.0.0.0)" );
+		System.out.println( "  -c, --configPath <PATH> ⚙️  Path to BoxLang configuration file (default: ~/.boxlang/config/boxlang.json)" );
+		System.out.println( "  -s, --serverHome <PATH> 🏡 BoxLang server home directory (default: ~/.boxlang)" );
+		System.out.println( "  -r, --rewrites [FILE]   🔀 Enable URL rewrites (default file: index.bxm)" );
+		System.out.println();
+		System.out.println( "🌍 ENVIRONMENT VARIABLES:" );
+		System.out.println( "  BOXLANG_CONFIG          📁 Path to BoxLang configuration file" );
+		System.out.println( "  BOXLANG_DEBUG           🐛 Enable debug mode (true/false)" );
+		System.out.println( "  BOXLANG_HOME            🏡 BoxLang server home directory" );
+		System.out.println( "  BOXLANG_HOST            🏠 Host to bind to" );
+		System.out.println( "  BOXLANG_PORT            🌐 Port to listen on" );
+		System.out.println( "  BOXLANG_REWRITE_FILE    📄 Rewrite target file" );
+		System.out.println( "  BOXLANG_REWRITES        🔀 Enable URL rewrites" );
+		System.out.println( "  BOXLANG_WEBROOT         📁 Path to the webroot directory" );
+		System.out.println( "  JAVA_OPTS               ⚙️  Java Virtual Machine options and system properties" );
+		System.out.println();
+		System.out.println( "💡 EXAMPLES:" );
+		System.out.println( "  # 🚀 Start server with default settings" );
+		System.out.println( "  boxlang-miniserver" );
+		System.out.println();
+		System.out.println( "  # 🌐 Start server on port 80 with custom webroot" );
+		System.out.println( "  boxlang-miniserver --port 80 --webroot /var/www" );
+		System.out.println();
+		System.out.println( "  # 🐛 Start server with debug mode and URL rewrites enabled" );
+		System.out.println( "  boxlang-miniserver --debug --rewrites" );
+		System.out.println();
+		System.out.println( "  # 🔀 Start server with custom rewrite file" );
+		System.out.println( "  boxlang-miniserver --rewrites app.bxm" );
+		System.out.println();
+		System.out.println( "  # 🚀 Start server with JVM memory settings" );
+		System.out.println( "  JAVA_OPTS=\"-Xms512m -Xmx2g\" boxlang-miniserver --port 8080" );
+		System.out.println();
+		System.out.println( "🏠 DEFAULT WELCOME FILES:" );
+		System.out.println( "  index.bxm, index.bxs, index.cfm, index.cfs, index.htm, index.html" );
+		System.out.println();
+		System.out.println( "🔌 WEBSOCKET SUPPORT:" );
+		System.out.println( "  WebSocket endpoint available at: ws://host:port/ws" );
+		System.out.println();
+		System.out.println( "📖 More Information:" );
+		System.out.println( "  📖 Documentation: https://boxlang.ortusbooks.com/" );
+		System.out.println( "  💬 Community: https://community.ortussolutions.com/c/boxlang/42" );
+		System.out.println( "  💾 GitHub: https://github.com/ortus-boxlang" );
+		System.out.println();
 	}
 
 }
