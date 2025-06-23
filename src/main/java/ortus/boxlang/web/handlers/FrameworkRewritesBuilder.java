@@ -63,7 +63,7 @@ public class FrameworkRewritesBuilder implements HandlerBuilder {
 			@Override
 			public HttpHandler wrap( HttpHandler toWrap ) {
 				List<PredicatedHandler> ph = PredicatedHandlersParser.parse(
-				    "not regex('^/(ws)/.*')"
+				    "not regex('^/(ws|\\.well-known)/.*')"
 				        + "and not path(/favicon.ico)"
 				        + " and not is-file"
 				        + " and not is-directory -> rewrite( '/" + fileName + "%{DECODED_REQUEST_PATH}' )",

@@ -13,3 +13,5 @@ bin/**
 grapher/**
 /libs/
 src/test/resources/libs/
+/wwwServerHome
+/www

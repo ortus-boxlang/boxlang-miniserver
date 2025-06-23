@@ -19,6 +19,16 @@
 		},
 		{
 			"type": "java",
+			"name": "MiniServer-Help",
+			"request": "launch",
+			"mainClass": "ortus.boxlang.web.MiniServer",
+			"projectName": "boxlang-miniserver",
+			"args": [
+				"--help"
+			]
+		},
+		{
+			"type": "java",
 			"name": "MiniServer-TestWWW",
 			"request": "launch",
 			"mainClass": "ortus.boxlang.web.MiniServer",

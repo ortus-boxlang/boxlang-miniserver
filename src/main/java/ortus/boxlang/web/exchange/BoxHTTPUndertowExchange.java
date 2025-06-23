@@ -50,6 +50,7 @@ import io.undertow.server.handlers.CookieImpl;
 import io.undertow.server.handlers.form.FormData;
 import io.undertow.server.handlers.form.FormDataParser;
 import io.undertow.server.handlers.form.FormParserFactory;
+import io.undertow.server.handlers.form.MultiPartParserDefinition;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
@@ -335,9 +336,20 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public Map<String, String[]> getRequestFormMap() {
-		// Store all files on disk
-		System.setProperty( "io.undertow.multipart.minsize", "0" );
-		FormParserFactory		parserFactory	= FormParserFactory.builder().build();
+		var formParserBuilder = FormParserFactory.builder();
+		// The Form Parse factory builder doesn't actually let you set the properties of the default parsers.
+		// Instead of manually creating them, I'll just look for the one we care about, and tweak it.
+		// The multi-part parser will only actually be used if the request content type is multipart/form-data
+		for ( var parser : formParserBuilder.getParsers() ) {
+			if ( parser instanceof MultiPartParserDefinition mppd ) {
+				// Store all files on disk
+				mppd.setFileSizeThreshold( 0 );
+				// Never store input fields on disk
+				mppd.setFieldSizeThreshold( Long.MAX_VALUE );
+			}
+		}
+
+		FormParserFactory		parserFactory	= formParserBuilder.build();
 		FormDataParser			parser			= parserFactory.createParser( exchange );
 
 		FormData				formData;
@@ -367,6 +379,8 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 							        return "";
 						        }
 					        } else {
+						        // Note, we're not checking f.isBigField() here. The fieldSizeThreshold set above SHOULD mean all multi-part non-file fields
+						        // are stored in memory and never written to disk.
 						        return f.getValue();
 					        }
 				        } )
