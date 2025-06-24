@@ -5,7 +5,14 @@
 
 version: 2
 updates:
-  - package-ecosystem: "gradle" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # GitHub Actions - updates `uses:` statements in workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"                  # Where your `.github/workflows/` folder is
+    schedule:
+      interval: "weekly"
+
+  # Gradle - updates dependencies in build.gradle or build.gradle.kts
+  - package-ecosystem: "gradle"
+    directory: "/"                  # Adjust if build.gradle is in a subfolder
     schedule:
       interval: "weekly"
