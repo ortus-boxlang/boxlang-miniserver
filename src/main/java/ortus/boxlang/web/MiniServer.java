@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
@@ -151,6 +152,9 @@ public class MiniServer {
 			// Normalize and validate the webroot path
 			Path absWebRoot = normalizeWebroot( config.webRoot );
 
+			// Load up any .env files if they exist
+			loadEnvFiles( absWebRoot );
+
 			// Start the server
 			startServer( config, absWebRoot );
 		} catch ( IllegalArgumentException e ) {
@@ -160,6 +164,29 @@ public class MiniServer {
 			System.err.println( "Failed to start server: " + e.getMessage() );
 			e.printStackTrace();
 			System.exit( 1 );
+		}
+	}
+
+	/**
+	 * Loads environment variables from a .env file in the web root directory.
+	 *
+	 * @param absWebRoot The absolute path to the web root directory
+	 */
+	private static void loadEnvFiles( Path absWebRoot ) {
+		// Load .env files if they exist in the web root
+		Path envFile = absWebRoot.resolve( ".env" );
+		if ( envFile.toFile().exists() ) {
+			Properties properties = new Properties();
+			try {
+				properties.load( java.nio.file.Files.newBufferedReader( envFile ) );
+				System.out.println( "+ Loaded environment variables from: " + envFile );
+				// Set system properties from the loaded properties
+				for ( String key : properties.stringPropertyNames() ) {
+					System.setProperty( key, properties.getProperty( key ) );
+				}
+			} catch ( Exception e ) {
+				System.err.println( "Failed to load .env file: " + e.getMessage() );
+			}
 		}
 	}
 
