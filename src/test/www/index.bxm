@@ -1,3 +1,5 @@
 <bx:script>
 	writeDump( cgi )
+	writeDump( server )
+	writeDump( application )
 </bx:script>
