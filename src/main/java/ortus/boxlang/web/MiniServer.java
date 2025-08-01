@@ -86,6 +86,11 @@ public class MiniServer {
 	 */
 	private static final ThreadLocal<HttpServerExchange>	currentExchange	= new ThreadLocal<>();
 
+	/**
+	 * Main method to start the BoxLang MiniServer.
+	 *
+	 * @param args Command line arguments. See Help for details.
+	 */
 	public static void main( String[] args ) {
 		Map<String, String>	envVars			= System.getenv();
 
@@ -134,18 +139,10 @@ public class MiniServer {
 		}
 
 		// Normalize the webroot path
-		Path absWebRoot = Paths.get( webRoot ).normalize();
-		if ( !absWebRoot.isAbsolute() ) {
-			absWebRoot = Paths.get( "" ).resolve( webRoot ).normalize().toAbsolutePath().normalize();
-		}
-		// Verify webroot exists on disk, else fail
-		if ( !absWebRoot.toFile().exists() ) {
-			System.out.println( "Web Root does not exist, cannot continue: " + absWebRoot.toString() );
-			System.exit( 1 );
-		}
+		Path	absWebRoot	= normalizeWebroot( webRoot );
 
-		// Start the server
-		var sTime = System.currentTimeMillis();
+		// Output the server information
+		var		sTime		= System.currentTimeMillis();
 		System.out.println( "+ Starting BoxLang Server..." );
 		System.out.println( "  - Web Root: " + absWebRoot.toString() );
 		System.out.println( "  - Host: " + host );
@@ -162,62 +159,10 @@ public class MiniServer {
 		    "  - BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: "
 		        + versionInfo.getAsString( Key.of( "buildDate" ) )
 		        + ")" );
-		Undertow.Builder builder = Undertow.builder();
-		resourceManager = new PathResourceManager( absWebRoot );
-
 		System.out.println( "  - Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
 
-		HttpHandler httpHandler = new EncodingHandler(
-		    new ContentEncodingRepository().addEncodingHandler(
-		        "gzip", new GzipEncodingProvider(), 50, Predicates.parse( "request-larger-than(1500)" )
-		    )
-		)
-		    .setNext( new WelcomeFileHandler(
-		        Handlers.predicate(
-		            // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
-		            Predicates.parse( "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )" ),
-		            new BLHandler( absWebRoot.toString() ),
-		            new ResourceHandler( resourceManager )
-		                .setDirectoryListingEnabled( true ) ),
-		        resourceManager,
-		        List.of( "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html" )
-		    ) );
-
-		httpHandler			= new WebsocketHandler( httpHandler, "/ws" );
-		websocketHandler	= ( WebsocketHandler ) httpHandler;
-		System.out.println( "+ WebSocket Server started" );
-
-		if ( rewrites ) {
-			System.out.println( "+ Enabling rewrites to /" + rewriteFileName );
-			httpHandler = new FrameworkRewritesBuilder().build( Map.of( "fileName", rewriteFileName ) ).wrap( httpHandler );
-		}
-
-		final HttpHandler finalHttpHandler = httpHandler;
-		httpHandler = new HttpHandler() {
-
-			@Override
-			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
-				try {
-					// This allows the exchange to be available to the thread.
-					MiniServer.setCurrentExchange( exchange );
-					finalHttpHandler.handleRequest( exchange );
-				} finally {
-					// Clean up after
-					MiniServer.setCurrentExchange( null );
-				}
-			}
-
-			@Override
-			public String toString() {
-				return "Websocket Exchange Setter Handler";
-			}
-		};
-
-		// Build out the server
-		Undertow BLServer = builder
-		    .addHttpListener( port, host )
-		    .setHandler( httpHandler )
-		    .build();
+		// Build the web server
+		Undertow BLServer = buildWebServer( absWebRoot, rewrites, rewriteFileName, port, host );
 
 		// Add a shutdown hook to stop the server
 		// Add shutdown hook to gracefully stop the server
@@ -230,12 +175,12 @@ public class MiniServer {
 		} ) );
 
 		// Startup the server
+		BLServer.start();
 		System.out.println(
 		    "+ BoxLang MiniServer started in " + ( System.currentTimeMillis() - sTime ) + "ms" +
 		        " at: http://" + host.replace( "0.0.0.0", "localhost" ) + ":" + port
 		);
 		System.out.println( "Press Ctrl+C to stop the server." );
-		BLServer.start();
 	}
 
 	/**
@@ -263,6 +208,117 @@ public class MiniServer {
 	 */
 	public static WebsocketHandler getWebsocketHandler() {
 		return websocketHandler;
+	}
+
+	/**
+	 * --------------------------------------------------------------------
+	 * Private Helpers
+	 * --------------------------------------------------------------------
+	 */
+
+	/**
+	 * Builds the Undertow web server with the specified parameters.
+	 *
+	 * @param webRootPath     The path to the web root directory.
+	 * @param rewrites        Whether to enable URL rewrites.
+	 * @param rewriteFileName The file name to use for rewrites, if enabled.
+	 * @param port            The port to listen on.
+	 * @param host            The host to bind to.
+	 *
+	 * @return The built Undertow server.
+	 */
+	private static Undertow buildWebServer(
+	    Path webRootPath,
+	    boolean rewrites,
+	    String rewriteFileName,
+	    int port,
+	    String host ) {
+		Undertow.Builder builder = Undertow.builder();
+		// Setup the resource manager for the web root
+		resourceManager = new PathResourceManager( webRootPath );
+
+		// Setup the HTTP handler with encoding and welcome file handling
+		HttpHandler httpHandler = new EncodingHandler(
+		    new ContentEncodingRepository().addEncodingHandler(
+		        "gzip",
+		        new GzipEncodingProvider(),
+		        50,
+		        Predicates.parse( "request-larger-than(1500)"
+		        )
+		    )
+		)
+		    // Set the next handler to the WelcomeFileHandler
+		    .setNext( new WelcomeFileHandler(
+		        Handlers.predicate(
+		            // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
+		            Predicates.parse( "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )" ),
+		            new BLHandler( webRootPath.toString() ),
+		            new ResourceHandler( resourceManager )
+		                .setDirectoryListingEnabled( true )
+		        ),
+		        resourceManager,
+		        List.of( "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html" )
+		    ) );
+
+		// Startup the Websocket handler and store them in the static variables
+		httpHandler			= new WebsocketHandler( httpHandler, "/ws" );
+		websocketHandler	= ( WebsocketHandler ) httpHandler;
+
+		// Print out the WebSocket server started message
+		System.out.println( "+ WebSocket Server started" );
+
+		// Handle rewrites if enabled
+		if ( rewrites ) {
+			System.out.println( "+ Enabling rewrites to /" + rewriteFileName );
+			httpHandler = new FrameworkRewritesBuilder().build( Map.of( "fileName", rewriteFileName ) ).wrap( httpHandler );
+		}
+
+		// Set the HttpHandler to handle requests
+		final HttpHandler finalHttpHandler = httpHandler;
+		httpHandler = new HttpHandler() {
+
+			@Override
+			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
+				try {
+					// This allows the exchange to be available to the thread.
+					MiniServer.setCurrentExchange( exchange );
+					finalHttpHandler.handleRequest( exchange );
+				} finally {
+					// Clean up after
+					MiniServer.setCurrentExchange( null );
+				}
+			}
+
+			@Override
+			public String toString() {
+				return "Websocket Exchange Setter Handler";
+			}
+		};
+
+		// Build out the server
+		return builder
+		    .addHttpListener( port, host )
+		    .setHandler( httpHandler )
+		    .build();
+	}
+
+	/**
+	 * Normalizes the webroot path to an absolute path.
+	 * If the path is relative, it resolves it against the current working directory.
+	 * If the path does not exist, it will print an error and exit the application.
+	 *
+	 * @param webRoot The webroot path to normalize.
+	 *
+	 * @return The normalized absolute path.
+	 */
+	private static Path normalizeWebroot( String webRoot ) {
+		Path absWebRoot = Paths.get( webRoot ).toAbsolutePath().normalize();
+		// Verify webroot exists on disk, else fail
+		if ( !absWebRoot.toFile().exists() ) {
+			System.out.println( "Web Root does not exist, cannot continue: " + absWebRoot.toString() );
+			System.exit( 1 );
+		}
+		return absWebRoot;
 	}
 
 	/**
