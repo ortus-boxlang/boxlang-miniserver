@@ -40,6 +40,7 @@ import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
 import ortus.boxlang.web.handlers.HealthCheckHandler;
+import ortus.boxlang.web.handlers.SecurityHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
 
@@ -407,7 +408,7 @@ public class MiniServer {
 	 */
 	private static HttpHandler createHandlerChain( Path webRootPath, ServerConfig config ) {
 		// Create the base handler (welcome file handling and routing)
-		HttpHandler	baseHandler	= new WelcomeFileHandler(
+		HttpHandler	baseHandler		= new WelcomeFileHandler(
 		    Handlers.predicate(
 		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
 		        Predicates.parse( BOXLANG_FILE_PATTERN ),
@@ -419,14 +420,18 @@ public class MiniServer {
 		    DEFAULT_WELCOME_FILES
 		);
 
+		// Add security filter to block access to hidden files (starting with .)
+		HttpHandler	secureHandler	= new SecurityHandler( baseHandler );
+		System.out.println( "+ Security protection enabled - blocking access to hidden files (starting with .)" );
+
 		// Conditionally add health check handler
-		HttpHandler	nextHandler;
+		HttpHandler nextHandler;
 		if ( config.healthCheck ) {
-			nextHandler = new HealthCheckHandler( baseHandler, config.healthCheckSecure );
+			nextHandler = new HealthCheckHandler( secureHandler, config.healthCheckSecure );
 			String securityNote = config.healthCheckSecure ? " (detailed info restricted to localhost)" : "";
 			System.out.println( "+ Health check endpoints available at /health, /health/ready, /health/live" + securityNote );
 		} else {
-			nextHandler = baseHandler;
+			nextHandler = secureHandler;
 		}
 
 		// Setup the HTTP handler with encoding and welcome file handling
