@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
@@ -38,6 +39,8 @@ import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
+import ortus.boxlang.web.handlers.HealthCheckHandler;
+import ortus.boxlang.web.handlers.SecurityHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
 
@@ -68,9 +71,27 @@ import ortus.boxlang.web.handlers.WelcomeFileHandler;
 public class MiniServer {
 
 	/**
+	 * Default constants
+	 */
+	private static final int								DEFAULT_PORT			= 8080;
+	private static final String								DEFAULT_HOST			= "0.0.0.0";
+	private static final String								DEFAULT_REWRITE_FILE	= "index.bxm";
+	private static final int								GZIP_MIN_SIZE			= 1500;
+	private static final int								GZIP_PRIORITY			= 50;
+	private static final String								WEBSOCKET_PATH			= "/ws";
+	private static final List<String>						DEFAULT_WELCOME_FILES	= List.of(
+	    "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html"
+	);
+
+	/**
+	 * BoxLang file pattern for request routing
+	 */
+	private static final String								BOXLANG_FILE_PATTERN	= "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )";
+
+	/**
 	 * Flag to indicate if the server is shutting down.
 	 */
-	public static boolean									shuttingDown	= false;
+	public static boolean									shuttingDown			= false;
 
 	/**
 	 * The Websocket handler for the server.
@@ -78,164 +99,246 @@ public class MiniServer {
 	public static WebsocketHandler							websocketHandler;
 
 	/**
-	 * The resource manager for the server. Placed here for eacy access from predicates
+	 * The resource manager for the server. Placed here for easy access from predicates
 	 */
 	public static ResourceManager							resourceManager;
+
 	/**
 	 * ThreadLocal to store the current HttpServerExchange.
 	 */
-	private static final ThreadLocal<HttpServerExchange>	currentExchange	= new ThreadLocal<>();
+	private static final ThreadLocal<HttpServerExchange>	currentExchange			= new ThreadLocal<>();
 
+	/**
+	 * Configuration class for server settings
+	 */
+	public static class ServerConfig {
+
+		public int		port				= DEFAULT_PORT;
+		public String	webRoot				= "";
+		public Boolean	debug				= null;
+		public String	host				= DEFAULT_HOST;
+		public String	configPath			= null;
+		public String	serverHome			= null;
+		public Boolean	rewrites			= false;
+		public String	rewriteFileName		= DEFAULT_REWRITE_FILE;
+		public Boolean	healthCheck			= false;
+		public Boolean	healthCheckSecure	= false;
+
+		/**
+		 * Validates the configuration and throws IllegalArgumentException if invalid
+		 */
+		public void validate() {
+			if ( port < 1 || port > 65535 ) {
+				throw new IllegalArgumentException( "Port must be between 1 and 65535, got: " + port );
+			}
+			if ( host == null || host.trim().isEmpty() ) {
+				throw new IllegalArgumentException( "Host cannot be null or empty" );
+			}
+			if ( rewriteFileName == null || rewriteFileName.trim().isEmpty() ) {
+				throw new IllegalArgumentException( "Rewrite file name cannot be null or empty" );
+			}
+		}
+	}
+
+	/**
+	 * Main method to start the BoxLang MiniServer.
+	 *
+	 * @param args Command line arguments. See Help for details.
+	 */
 	public static void main( String[] args ) {
-		Map<String, String>	envVars			= System.getenv();
+		try {
+			// Parse configuration from environment and command line
+			ServerConfig config = parseConfiguration( args );
 
-		// Setup Defaults, and grab environment variables
-		int					port			= Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", "8080" ) );
-		String				webRoot			= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
-		// We don't do this one, as it is done by the runtime itself.
-		Boolean				debug			= null;
-		String				host			= envVars.getOrDefault( "BOXLANG_HOST", "0.0.0.0" );
-		String				configPath		= envVars.getOrDefault( "BOXLANG_CONFIG", null );
-		String				serverHome		= envVars.getOrDefault( "BOXLANG_HOME", null );
-		Boolean				rewrites		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_REWRITES", "false" ) );
-		String				rewriteFileName	= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", "index.bxm" );
+			// Normalize and validate the webroot path
+			Path absWebRoot = normalizeWebroot( config.webRoot );
 
-		// Grab command line arguments
-		for ( int i = 0; i < args.length; i++ ) {
-			if ( args[ i ].equalsIgnoreCase( "--help" ) || args[ i ].equalsIgnoreCase( "-h" ) ) {
-				printHelp();
-				System.exit( 0 );
-			}
-			if ( args[ i ].equalsIgnoreCase( "--port" ) || args[ i ].equalsIgnoreCase( "-p" ) ) {
-				port = Integer.parseInt( args[ ++i ] );
-			}
-			if ( args[ i ].equalsIgnoreCase( "--webroot" ) || args[ i ].equalsIgnoreCase( "-w" ) ) {
-				webRoot = args[ ++i ];
-			}
-			if ( args[ i ].equalsIgnoreCase( "--debug" ) || args[ i ].equalsIgnoreCase( "-d" ) ) {
-				debug = true;
-			}
-			if ( args[ i ].equalsIgnoreCase( "--host" ) ) {
-				host = args[ ++i ];
-			}
-			if ( args[ i ].equalsIgnoreCase( "--configPath" ) || args[ i ].equalsIgnoreCase( "-c" ) ) {
-				configPath = args[ ++i ];
-			}
-			if ( args[ i ].equalsIgnoreCase( "--serverHome" ) || args[ i ].equalsIgnoreCase( "-s" ) ) {
-				serverHome = args[ ++i ];
-			}
-			if ( args[ i ].equalsIgnoreCase( "--rewrites" ) || args[ i ].equalsIgnoreCase( "-r" ) ) {
-				rewrites = true;
-				// check if the next arg exists and is not a flag and is a file name
-				if ( i + 1 < args.length && !args[ i + 1 ].startsWith( "-" ) ) {
-					rewriteFileName = args[ ++i ];
-				}
-			}
-		}
+			// Load up any .env files if they exist
+			loadEnvFiles( absWebRoot );
 
-		// Normalize the webroot path
-		Path absWebRoot = Paths.get( webRoot ).normalize();
-		if ( !absWebRoot.isAbsolute() ) {
-			absWebRoot = Paths.get( "" ).resolve( webRoot ).normalize().toAbsolutePath().normalize();
-		}
-		// Verify webroot exists on disk, else fail
-		if ( !absWebRoot.toFile().exists() ) {
-			System.out.println( "Web Root does not exist, cannot continue: " + absWebRoot.toString() );
+			// Start the server
+			startServer( config, absWebRoot );
+		} catch ( IllegalArgumentException e ) {
+			System.err.println( "Error: " + e.getMessage() );
+			System.exit( 1 );
+		} catch ( Exception e ) {
+			System.err.println( "Failed to start server: " + e.getMessage() );
+			e.printStackTrace();
 			System.exit( 1 );
 		}
+	}
 
-		// Start the server
+	/**
+	 * Loads environment variables from a .env file in the web root directory.
+	 *
+	 * @param absWebRoot The absolute path to the web root directory
+	 */
+	private static void loadEnvFiles( Path absWebRoot ) {
+		// Load .env files if they exist in the web root
+		Path envFile = absWebRoot.resolve( ".env" );
+		if ( envFile.toFile().exists() ) {
+			Properties properties = new Properties();
+			try {
+				properties.load( java.nio.file.Files.newBufferedReader( envFile ) );
+				System.out.println( "+ Loaded environment variables from: " + envFile );
+				// Set system properties from the loaded properties
+				for ( String key : properties.stringPropertyNames() ) {
+					System.setProperty( key, properties.getProperty( key ) );
+				}
+			} catch ( Exception e ) {
+				System.err.println( "Failed to load .env file: " + e.getMessage() );
+			}
+		}
+	}
+
+	/**
+	 * Parses configuration from environment variables and command line arguments.
+	 *
+	 * @param args Command line arguments
+	 *
+	 * @return ServerConfig with parsed values
+	 */
+	private static ServerConfig parseConfiguration( String[] args ) {
+		Map<String, String>	envVars	= System.getenv();
+		ServerConfig		config	= new ServerConfig();
+
+		// Setup defaults from environment variables
+		try {
+			config.port = Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", String.valueOf( DEFAULT_PORT ) ) );
+		} catch ( NumberFormatException e ) {
+			throw new IllegalArgumentException( "Invalid BOXLANG_PORT environment variable: " + envVars.get( "BOXLANG_PORT" ) );
+		}
+
+		config.webRoot				= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
+		config.host					= envVars.getOrDefault( "BOXLANG_HOST", DEFAULT_HOST );
+		config.configPath			= envVars.getOrDefault( "BOXLANG_CONFIG", null );
+		config.serverHome			= envVars.getOrDefault( "BOXLANG_HOME", null );
+		config.rewrites				= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_REWRITES", "false" ) );
+		config.rewriteFileName		= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", DEFAULT_REWRITE_FILE );
+		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
+		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
+
+		// Parse command line arguments
+		for ( int i = 0; i < args.length; i++ ) {
+			String arg = args[ i ];
+
+			if ( arg.equalsIgnoreCase( "--help" ) || arg.equalsIgnoreCase( "-h" ) ) {
+				printHelp();
+				System.exit( 0 );
+			} else if ( arg.equalsIgnoreCase( "--port" ) || arg.equalsIgnoreCase( "-p" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Port argument requires a value" );
+				}
+				try {
+					config.port = Integer.parseInt( args[ ++i ] );
+				} catch ( NumberFormatException e ) {
+					throw new IllegalArgumentException( "Invalid port number: " + args[ i ] );
+				}
+			} else if ( arg.equalsIgnoreCase( "--webroot" ) || arg.equalsIgnoreCase( "-w" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Webroot argument requires a value" );
+				}
+				config.webRoot = args[ ++i ];
+			} else if ( arg.equalsIgnoreCase( "--debug" ) || arg.equalsIgnoreCase( "-d" ) ) {
+				config.debug = true;
+			} else if ( arg.equalsIgnoreCase( "--host" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Host argument requires a value" );
+				}
+				config.host = args[ ++i ];
+			} else if ( arg.equalsIgnoreCase( "--configPath" ) || arg.equalsIgnoreCase( "-c" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Config path argument requires a value" );
+				}
+				config.configPath = args[ ++i ];
+			} else if ( arg.equalsIgnoreCase( "--serverHome" ) || arg.equalsIgnoreCase( "-s" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Server home argument requires a value" );
+				}
+				config.serverHome = args[ ++i ];
+			} else if ( arg.equalsIgnoreCase( "--rewrites" ) || arg.equalsIgnoreCase( "-r" ) ) {
+				config.rewrites = true;
+				// Check if the next arg exists and is not a flag and is a file name
+				if ( i + 1 < args.length && !args[ i + 1 ].startsWith( "-" ) ) {
+					config.rewriteFileName = args[ ++i ];
+				}
+			} else if ( arg.equalsIgnoreCase( "--health-check" ) ) {
+				config.healthCheck = true;
+			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
+				config.healthCheckSecure = true;
+			} else if ( arg.startsWith( "-" ) ) {
+				throw new IllegalArgumentException( "Unknown argument: " + arg );
+			}
+		}
+
+		// Validate configuration
+		config.validate();
+		return config;
+	}
+
+	/**
+	 * Starts the server with the given configuration.
+	 *
+	 * @param config     The server configuration
+	 * @param absWebRoot The absolute web root path
+	 */
+	private static void startServer( ServerConfig config, Path absWebRoot ) {
 		var sTime = System.currentTimeMillis();
+
+		// Output server information
 		System.out.println( "+ Starting BoxLang Server..." );
 		System.out.println( "  - Web Root: " + absWebRoot.toString() );
-		System.out.println( "  - Host: " + host );
-		System.out.println( "  - Port: " + port );
-		System.out.println( "  - Debug: " + debug );
-		System.out.println( "  - Config Path: " + configPath );
-		System.out.println( "  - Server Home: " + serverHome );
+		System.out.println( "  - Host: " + config.host );
+		System.out.println( "  - Port: " + config.port );
+		System.out.println( "  - Debug: " + config.debug );
+		System.out.println( "  - Config Path: " + config.configPath );
+		System.out.println( "  - Server Home: " + config.serverHome );
+		System.out.println( "  - Health Check: " + config.healthCheck );
+		System.out.println( "  - Health Check Secure: " + config.healthCheckSecure );
 		System.out.println( "+ Starting BoxLang Runtime..." );
 
 		// Startup the runtime
-		BoxRuntime	runtime		= BoxRuntime.getInstance( debug, configPath, serverHome );
+		BoxRuntime	runtime		= BoxRuntime.getInstance( config.debug, config.configPath, config.serverHome );
 		IStruct		versionInfo	= runtime.getVersionInfo();
 		System.out.println(
 		    "  - BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: "
 		        + versionInfo.getAsString( Key.of( "buildDate" ) )
 		        + ")" );
-		Undertow.Builder builder = Undertow.builder();
-		resourceManager = new PathResourceManager( absWebRoot );
-
 		System.out.println( "  - Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
 
-		HttpHandler httpHandler = new EncodingHandler(
-		    new ContentEncodingRepository().addEncodingHandler(
-		        "gzip", new GzipEncodingProvider(), 50, Predicates.parse( "request-larger-than(1500)" )
-		    )
-		)
-		    .setNext( new WelcomeFileHandler(
-		        Handlers.predicate(
-		            // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
-		            Predicates.parse( "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )" ),
-		            new BLHandler( absWebRoot.toString() ),
-		            new ResourceHandler( resourceManager )
-		                .setDirectoryListingEnabled( true ) ),
-		        resourceManager,
-		        List.of( "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html" )
-		    ) );
+		// Build the web server
+		Undertow BLServer = buildWebServer( absWebRoot, config );
 
-		httpHandler			= new WebsocketHandler( httpHandler, "/ws" );
-		websocketHandler	= ( WebsocketHandler ) httpHandler;
-		System.out.println( "+ WebSocket Server started" );
+		// Add shutdown hook for graceful shutdown
+		addShutdownHook( BLServer, runtime );
 
-		if ( rewrites ) {
-			System.out.println( "+ Enabling rewrites to /" + rewriteFileName );
-			httpHandler = new FrameworkRewritesBuilder().build( Map.of( "fileName", rewriteFileName ) ).wrap( httpHandler );
-		}
+		// Start the server
+		BLServer.start();
+		long	totalStartTime	= System.currentTimeMillis() - sTime;
+		String	serverUrl		= "http://" + config.host.replace( "0.0.0.0", "localhost" ) + ":" + config.port;
+		System.out.println( "+ BoxLang MiniServer started in " + totalStartTime + "ms at: " + serverUrl );
+		System.out.println( "Press Ctrl+C to stop the server." );
+	}
 
-		final HttpHandler finalHttpHandler = httpHandler;
-		httpHandler = new HttpHandler() {
-
-			@Override
-			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
-				try {
-					// This allows the exchange to be available to the thread.
-					MiniServer.setCurrentExchange( exchange );
-					finalHttpHandler.handleRequest( exchange );
-				} finally {
-					// Clean up after
-					MiniServer.setCurrentExchange( null );
-				}
-			}
-
-			@Override
-			public String toString() {
-				return "Websocket Exchange Setter Handler";
-			}
-		};
-
-		// Build out the server
-		Undertow BLServer = builder
-		    .addHttpListener( port, host )
-		    .setHandler( httpHandler )
-		    .build();
-
-		// Add a shutdown hook to stop the server
-		// Add shutdown hook to gracefully stop the server
+	/**
+	 * Adds a shutdown hook for graceful server shutdown.
+	 *
+	 * @param server  The Undertow server
+	 * @param runtime The BoxLang runtime
+	 */
+	private static void addShutdownHook( Undertow server, BoxRuntime runtime ) {
 		Runtime.getRuntime().addShutdownHook( new Thread( () -> {
 			shuttingDown = true;
 			System.out.println( "Shutting down BoxLang Server..." );
-			BLServer.stop();
-			runtime.shutdown();
-			System.out.println( "BoxLang Server stopped." );
-		} ) );
 
-		// Startup the server
-		System.out.println(
-		    "+ BoxLang MiniServer started in " + ( System.currentTimeMillis() - sTime ) + "ms" +
-		        " at: http://" + host.replace( "0.0.0.0", "localhost" ) + ":" + port
-		);
-		System.out.println( "Press Ctrl+C to stop the server." );
-		BLServer.start();
+			try {
+				server.stop();
+				runtime.shutdown();
+				System.out.println( "BoxLang Server stopped." );
+			} catch ( Exception e ) {
+				System.err.println( "Error during server shutdown: " + e.getMessage() );
+			}
+		} ) );
 	}
 
 	/**
@@ -266,6 +369,171 @@ public class MiniServer {
 	}
 
 	/**
+	 * --------------------------------------------------------------------
+	 * Private Helpers
+	 * --------------------------------------------------------------------
+	 */
+
+	/**
+	 * Builds the Undertow web server with the specified parameters.
+	 *
+	 * @param webRootPath The path to the web root directory.
+	 * @param config      The server configuration
+	 *
+	 * @return The built Undertow server.
+	 */
+	private static Undertow buildWebServer( Path webRootPath, ServerConfig config ) {
+		Undertow.Builder builder = Undertow.builder();
+
+		// Setup the resource manager for the web root
+		resourceManager = new PathResourceManager( webRootPath );
+
+		// Create the HTTP handler chain with encoding and welcome file handling
+		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
+
+		// Build and return the server
+		return builder
+		    .addHttpListener( config.port, config.host )
+		    .setHandler( httpHandler )
+		    .build();
+	}
+
+	/**
+	 * Creates the HTTP handler chain for processing requests.
+	 *
+	 * @param webRootPath The web root path
+	 * @param config      The server configuration
+	 *
+	 * @return The configured HTTP handler chain
+	 */
+	private static HttpHandler createHandlerChain( Path webRootPath, ServerConfig config ) {
+		// Create the base handler (welcome file handling and routing)
+		HttpHandler	baseHandler		= new WelcomeFileHandler(
+		    Handlers.predicate(
+		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
+		        Predicates.parse( BOXLANG_FILE_PATTERN ),
+		        new BLHandler( webRootPath.toString() ),
+		        new ResourceHandler( resourceManager )
+		            .setDirectoryListingEnabled( true )
+		    ),
+		    resourceManager,
+		    DEFAULT_WELCOME_FILES
+		);
+
+		// Add security filter to block access to hidden files (starting with .)
+		HttpHandler	secureHandler	= new SecurityHandler( baseHandler );
+		System.out.println( "+ Security protection enabled - blocking access to hidden files (starting with .)" );
+
+		// Conditionally add health check handler
+		HttpHandler nextHandler;
+		if ( config.healthCheck ) {
+			nextHandler = new HealthCheckHandler( secureHandler, config.healthCheckSecure );
+			String securityNote = config.healthCheckSecure ? " (detailed info restricted to localhost)" : "";
+			System.out.println( "+ Health check endpoints available at /health, /health/ready, /health/live" + securityNote );
+		} else {
+			nextHandler = secureHandler;
+		}
+
+		// Setup the HTTP handler with encoding and welcome file handling
+		HttpHandler httpHandler = new EncodingHandler(
+		    new ContentEncodingRepository().addEncodingHandler(
+		        "gzip",
+		        new GzipEncodingProvider(),
+		        GZIP_PRIORITY,
+		        Predicates.parse( "request-larger-than(" + GZIP_MIN_SIZE + ")" )
+		    )
+		).setNext( nextHandler );
+
+		// Add WebSocket support
+		httpHandler			= new WebsocketHandler( httpHandler, WEBSOCKET_PATH );
+		websocketHandler	= ( WebsocketHandler ) httpHandler;
+		System.out.println( "+ WebSocket Server started" );
+
+		// Handle rewrites if enabled
+		if ( config.rewrites ) {
+			System.out.println( "+ Enabling rewrites to /" + config.rewriteFileName );
+			httpHandler = new FrameworkRewritesBuilder().build( Map.of( "fileName", config.rewriteFileName ) ).wrap( httpHandler );
+		}
+
+		// Wrap with exchange setter for WebSocket integration
+		return createExchangeSetterHandler( httpHandler );
+	}
+
+	/**
+	 * Creates a handler that sets the current exchange in ThreadLocal for WebSocket integration.
+	 *
+	 * @param finalHandler The final handler in the chain
+	 *
+	 * @return The exchange setter handler
+	 */
+	private static HttpHandler createExchangeSetterHandler( HttpHandler finalHandler ) {
+		return new HttpHandler() {
+
+			@Override
+			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
+				try {
+					// This allows the exchange to be available to the thread.
+					MiniServer.setCurrentExchange( exchange );
+					finalHandler.handleRequest( exchange );
+				} finally {
+					// Clean up after
+					MiniServer.setCurrentExchange( null );
+				}
+			}
+
+			@Override
+			public String toString() {
+				return "Exchange Setter Handler";
+			}
+		};
+	}
+
+	/**
+	 * Normalizes the webroot path to an absolute path.
+	 * If the path is relative, it resolves it against the current working directory.
+	 * If the path does not exist, it will throw an IllegalArgumentException.
+	 *
+	 * @param webRoot The webroot path to normalize.
+	 *
+	 * @return The normalized absolute path.
+	 *
+	 * @throws IllegalArgumentException if the webroot path is invalid or doesn't exist
+	 */
+	private static Path normalizeWebroot( String webRoot ) {
+		if ( webRoot == null || webRoot.trim().isEmpty() ) {
+			// Use current directory as default
+			webRoot = System.getProperty( "user.dir" );
+			System.out.println( "  - No webroot specified, using current directory: " + webRoot );
+		}
+
+		try {
+			Path absWebRoot = Paths.get( webRoot ).toAbsolutePath().normalize();
+
+			// Verify webroot exists on disk
+			if ( !absWebRoot.toFile().exists() ) {
+				throw new IllegalArgumentException( "Web Root does not exist: " + absWebRoot.toString() );
+			}
+
+			// Verify it's a directory
+			if ( !absWebRoot.toFile().isDirectory() ) {
+				throw new IllegalArgumentException( "Web Root is not a directory: " + absWebRoot.toString() );
+			}
+
+			// Verify read permissions
+			if ( !absWebRoot.toFile().canRead() ) {
+				throw new IllegalArgumentException( "Web Root is not readable: " + absWebRoot.toString() );
+			}
+
+			return absWebRoot;
+		} catch ( Exception e ) {
+			if ( e instanceof IllegalArgumentException ) {
+				throw e;
+			}
+			throw new IllegalArgumentException( "Invalid webroot path: " + webRoot + " - " + e.getMessage(), e );
+		}
+	}
+
+	/**
 	 * Prints help information for the BoxLang MiniServer command-line interface.
 	 */
 	private static void printHelp() {
@@ -284,6 +552,8 @@ public class MiniServer {
 		System.out.println( "  -c, --configPath <PATH> ⚙️  Path to BoxLang configuration file (default: ~/.boxlang/config/boxlang.json)" );
 		System.out.println( "  -s, --serverHome <PATH> 🏡 BoxLang server home directory (default: ~/.boxlang)" );
 		System.out.println( "  -r, --rewrites [FILE]   🔀 Enable URL rewrites (default file: index.bxm)" );
+		System.out.println( "      --health-check      ❤️  Enable health check endpoints (/health, /health/ready, /health/live)" );
+		System.out.println( "      --health-check-secure 🔒 Restrict detailed health info to localhost only" );
 		System.out.println();
 		System.out.println( "🌍 ENVIRONMENT VARIABLES:" );
 		System.out.println( "  BOXLANG_CONFIG          📁 Path to BoxLang configuration file" );
@@ -294,6 +564,8 @@ public class MiniServer {
 		System.out.println( "  BOXLANG_REWRITE_FILE    📄 Rewrite target file" );
 		System.out.println( "  BOXLANG_REWRITES        🔀 Enable URL rewrites" );
 		System.out.println( "  BOXLANG_WEBROOT         📁 Path to the webroot directory" );
+		System.out.println( "  BOXLANG_HEALTH_CHECK    ❤️  Enable health check endpoints (true/false)" );
+		System.out.println( "  BOXLANG_HEALTH_CHECK_SECURE 🔒 Restrict detailed health info to localhost only (true/false)" );
 		System.out.println( "  JAVA_OPTS               ⚙️  Java Virtual Machine options and system properties" );
 		System.out.println();
 		System.out.println( "💡 EXAMPLES:" );
@@ -305,6 +577,12 @@ public class MiniServer {
 		System.out.println();
 		System.out.println( "  # 🐛 Start server with debug mode and URL rewrites enabled" );
 		System.out.println( "  boxlang-miniserver --debug --rewrites" );
+		System.out.println();
+		System.out.println( "  # ❤️  Start server with health check endpoints enabled" );
+		System.out.println( "  boxlang-miniserver --health-check" );
+		System.out.println();
+		System.out.println( "  # ❤️  Start server with secure health checks (detailed info only on localhost)" );
+		System.out.println( "  boxlang-miniserver --health-check --health-check-secure" );
 		System.out.println();
 		System.out.println( "  # 🔀 Start server with custom rewrite file" );
 		System.out.println( "  boxlang-miniserver --rewrites app.bxm" );
@@ -318,7 +596,7 @@ public class MiniServer {
 		System.out.println( "🔌 WEBSOCKET SUPPORT:" );
 		System.out.println( "  WebSocket endpoint available at: ws://host:port/ws" );
 		System.out.println();
-		System.out.println( "📖 More Information:" );
+		System.out.println( "ℹ️ More Information:" );
 		System.out.println( "  📖 Documentation: https://boxlang.ortusbooks.com/" );
 		System.out.println( "  💬 Community: https://community.ortussolutions.com/c/boxlang/42" );
 		System.out.println( "  💾 GitHub: https://github.com/ortus-boxlang" );
