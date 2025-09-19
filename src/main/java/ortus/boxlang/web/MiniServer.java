@@ -159,7 +159,8 @@ public class MiniServer {
 			// Start the server
 			startServer( config, absWebRoot );
 		} catch ( IllegalArgumentException e ) {
-			System.err.println( "Error: " + e.getMessage() );
+			System.err.println( "IllegalArgumentException: " + e.getMessage() );
+			e.printStackTrace();
 			System.exit( 1 );
 		} catch ( Exception e ) {
 			System.err.println( "Failed to start server: " + e.getMessage() );
