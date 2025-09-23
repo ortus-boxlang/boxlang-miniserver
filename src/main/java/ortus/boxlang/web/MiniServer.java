@@ -17,6 +17,8 @@
  */
 package ortus.boxlang.web;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -34,9 +36,12 @@ import io.undertow.server.handlers.encoding.GzipEncodingProvider;
 import io.undertow.server.handlers.resource.PathResourceManager;
 import io.undertow.server.handlers.resource.ResourceHandler;
 import io.undertow.server.handlers.resource.ResourceManager;
+import ortus.boxlang.runtime.BoxRunner;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
+import ortus.boxlang.runtime.types.Struct;
+import ortus.boxlang.runtime.util.EncryptionUtil;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
 import ortus.boxlang.web.handlers.HealthCheckHandler;
@@ -225,6 +230,9 @@ public class MiniServer {
 
 			if ( arg.equalsIgnoreCase( "--help" ) || arg.equalsIgnoreCase( "-h" ) ) {
 				printHelp();
+				System.exit( 0 );
+			} else if ( arg.equalsIgnoreCase( "--version" ) || arg.equalsIgnoreCase( "-v" ) ) {
+				printVersion();
 				System.exit( 0 );
 			} else if ( arg.equalsIgnoreCase( "--port" ) || arg.equalsIgnoreCase( "-p" ) ) {
 				if ( i + 1 >= args.length ) {
@@ -535,6 +543,35 @@ public class MiniServer {
 	}
 
 	/**
+	 * Prints version information for the BoxLang MiniServer.
+	 */
+	private static void printVersion() {
+		var versionInfo = getVersionInfo();
+		System.out.println( "Ortus BoxLang™ MiniServer v" + versionInfo.get( "version" ) );
+		System.out.println( "BoxLang™ MiniServer ID: " + versionInfo.get( "boxlangId" ) );
+		System.out.println( "Built On: " + versionInfo.get( "buildDate" ) );
+		System.out.println( "Copyright Ortus Solutions, Corp™" );
+		System.out.println( "https://boxlang.io" );
+	}
+
+	/**
+	 * Get a Struct of version information from the version.properties
+	 */
+	public static IStruct getVersionInfo() {
+		// Lazy Load the version info
+		Properties properties = new Properties();
+		try ( InputStream inputStream = BoxRunner.class.getResourceAsStream( "/META-INF/boxlang-miniserver/version.properties" ) ) {
+			properties.load( inputStream );
+		} catch ( IOException e ) {
+			e.printStackTrace();
+		}
+		IStruct versionInfo = Struct.fromMap( properties );
+		// Generate a hash of the version info as the unique boxlang runtime id
+		versionInfo.put( "boxlangId", EncryptionUtil.hash( versionInfo ) );
+		return versionInfo;
+	}
+
+	/**
 	 * Prints help information for the BoxLang MiniServer command-line interface.
 	 */
 	private static void printHelp() {
@@ -546,6 +583,7 @@ public class MiniServer {
 		System.out.println();
 		System.out.println( "⚙️  OPTIONS:" );
 		System.out.println( "  -h, --help              ❓ Show this help message and exit" );
+		System.out.println( "  -v, --version           ℹ️  Show version information and exit" );
 		System.out.println( "  -p, --port <PORT>       🌐 Port to listen on (default: 8080)" );
 		System.out.println( "  -w, --webroot <PATH>    📁 Path to the webroot directory (default: current directory)" );
 		System.out.println( "  -d, --debug             🐛 Enable debug mode (true/false, default: false)" );
