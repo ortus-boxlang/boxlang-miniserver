@@ -60,6 +60,7 @@ import io.undertow.websockets.core.AbstractReceiveListener;
 import io.undertow.websockets.core.BufferedBinaryMessage;
 import io.undertow.websockets.core.BufferedTextMessage;
 import io.undertow.websockets.core.WebSocketChannel;
+import io.undertow.websockets.core.WebSockets;
 import ortus.boxlang.web.MiniServer;
 
 @SuppressWarnings( "deprecation" )
@@ -70,6 +71,7 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	private HttpServerExchange						initialExchange;
 	private HttpHandler								next;
 	private WebSocketChannel						channel;
+	private boolean									isSTOMP						= false;
 
 	/**
 	 * constructor
@@ -82,6 +84,11 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 		this.initialExchange	= exchange;
 		this.next				= next;
 		this.channel			= channel;
+
+		String subProtocols = channel.getSubProtocol();
+		if ( subProtocols != null && subProtocols.toLowerCase().contains( "stomp" ) ) {
+			isSTOMP = true;
+		}
 
 		dispatchRequest( "onConnect", List.of( channel ) );
 	}
@@ -106,7 +113,16 @@ public class WebsocketReceiveListener extends AbstractReceiveListener {
 	@Override
 	protected void onFullTextMessage( WebSocketChannel channel, BufferedTextMessage message )
 	    throws IOException {
-		dispatchRequest( "onFullTextMessage", List.of( message.getData(), channel ) );
+		String data = message.getData();
+
+		// handle STOMP heartbeats
+		if ( isSTOMP && data.isBlank() ) {
+			synchronized ( channel ) {
+				WebSockets.sendText( "\n", channel, null );
+			}
+		} else {
+			dispatchRequest( "onFullTextMessage", List.of( data, channel ) );
+		}
 	}
 
 	/**
