@@ -19,11 +19,14 @@ package ortus.boxlang.web;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import com.fasterxml.jackson.jr.ob.JSON;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
@@ -224,8 +227,28 @@ public class MiniServer {
 		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
 		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
 
-		// Parse command line arguments
-		for ( int i = 0; i < args.length; i++ ) {
+		// Load JSON configuration if available
+		// Check if first argument is a path to a JSON file
+		String jsonConfigPath = null;
+		if ( args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" ) ) {
+			jsonConfigPath = args[ 0 ];
+		} else {
+			// Look for miniserver.json in current directory
+			Path defaultJsonPath = Paths.get( System.getProperty( "user.dir" ), "miniserver.json" );
+			if ( Files.exists( defaultJsonPath ) ) {
+				jsonConfigPath = defaultJsonPath.toString();
+			}
+		}
+
+		if ( jsonConfigPath != null ) {
+			loadJsonConfiguration( config, jsonConfigPath );
+		}
+
+		// Parse command line arguments (these override JSON and environment)
+		// If first arg was a JSON file path, skip it
+		int startIndex = ( args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" ) ) ? 1 : 0;
+
+		for ( int i = startIndex; i < args.length; i++ ) {
 			String arg = args[ i ];
 
 			if ( arg.equalsIgnoreCase( "--help" ) || arg.equalsIgnoreCase( "-h" ) ) {
@@ -283,6 +306,63 @@ public class MiniServer {
 		// Validate configuration
 		config.validate();
 		return config;
+	}
+
+	/**
+	 * Loads configuration from a JSON file and applies it to the config object.
+	 *
+	 * @param config   The ServerConfig object to populate
+	 * @param jsonPath The path to the JSON configuration file
+	 */
+	private static void loadJsonConfiguration( ServerConfig config, String jsonPath ) {
+		try {
+			Path jsonFile = Paths.get( jsonPath ).toAbsolutePath();
+			if ( !Files.exists( jsonFile ) ) {
+				throw new IllegalArgumentException( "JSON configuration file not found: " + jsonPath );
+			}
+
+			String	jsonContent	= Files.readString( jsonFile );
+			Map		jsonConfig	= JSON.std.mapFrom( jsonContent );
+
+			System.out.println( "+ Loading configuration from: " + jsonFile );
+
+			// Apply JSON configuration values to config object
+			if ( jsonConfig.containsKey( "port" ) ) {
+				config.port = ( ( Number ) jsonConfig.get( "port" ) ).intValue();
+			}
+			if ( jsonConfig.containsKey( "webRoot" ) ) {
+				config.webRoot = ( String ) jsonConfig.get( "webRoot" );
+			}
+			if ( jsonConfig.containsKey( "debug" ) ) {
+				config.debug = ( Boolean ) jsonConfig.get( "debug" );
+			}
+			if ( jsonConfig.containsKey( "host" ) ) {
+				config.host = ( String ) jsonConfig.get( "host" );
+			}
+			if ( jsonConfig.containsKey( "configPath" ) ) {
+				config.configPath = ( String ) jsonConfig.get( "configPath" );
+			}
+			if ( jsonConfig.containsKey( "serverHome" ) ) {
+				config.serverHome = ( String ) jsonConfig.get( "serverHome" );
+			}
+			if ( jsonConfig.containsKey( "rewrites" ) ) {
+				config.rewrites = ( Boolean ) jsonConfig.get( "rewrites" );
+			}
+			if ( jsonConfig.containsKey( "rewriteFileName" ) ) {
+				config.rewriteFileName = ( String ) jsonConfig.get( "rewriteFileName" );
+			}
+			if ( jsonConfig.containsKey( "healthCheck" ) ) {
+				config.healthCheck = ( Boolean ) jsonConfig.get( "healthCheck" );
+			}
+			if ( jsonConfig.containsKey( "healthCheckSecure" ) ) {
+				config.healthCheckSecure = ( Boolean ) jsonConfig.get( "healthCheckSecure" );
+			}
+
+		} catch ( IOException e ) {
+			throw new IllegalArgumentException( "Failed to read JSON configuration file: " + jsonPath + " - " + e.getMessage(), e );
+		} catch ( Exception e ) {
+			throw new IllegalArgumentException( "Failed to parse JSON configuration file: " + jsonPath + " - " + e.getMessage(), e );
+		}
 	}
 
 	/**
@@ -579,7 +659,25 @@ public class MiniServer {
 		System.out.println();
 		System.out.println( "📋 USAGE:" );
 		System.out.println( "  boxlang-miniserver [OPTIONS]  # 🔧 Using OS binary" );
+		System.out.println( "  boxlang-miniserver [path/to/miniserver.json] [OPTIONS]  # 📄 With JSON config" );
 		System.out.println( "  java -jar boxlang-miniserver.jar [OPTIONS] # 🐍 Using Java JAR" );
+		System.out.println();
+		System.out.println( "📄 JSON CONFIGURATION:" );
+		System.out.println( "  If no arguments are provided, BoxLang MiniServer will look for a 'miniserver.json'" );
+		System.out.println( "  file in the current directory. You can also specify a path to a JSON config file" );
+		System.out.println( "  as the first argument. Command-line options override JSON configuration." );
+		System.out.println();
+		System.out.println( "  Example miniserver.json:" );
+		System.out.println( "  {" );
+		System.out.println( "    \"port\": 8080," );
+		System.out.println( "    \"host\": \"0.0.0.0\"," );
+		System.out.println( "    \"webRoot\": \"/path/to/webroot\"," );
+		System.out.println( "    \"debug\": true," );
+		System.out.println( "    \"rewrites\": true," );
+		System.out.println( "    \"rewriteFileName\": \"index.bxm\"," );
+		System.out.println( "    \"healthCheck\": true," );
+		System.out.println( "    \"healthCheckSecure\": false" );
+		System.out.println( "  }" );
 		System.out.println();
 		System.out.println( "⚙️  OPTIONS:" );
 		System.out.println( "  -h, --help              ❓ Show this help message and exit" );
@@ -610,6 +708,15 @@ public class MiniServer {
 		System.out.println( "💡 EXAMPLES:" );
 		System.out.println( "  # 🚀 Start server with default settings" );
 		System.out.println( "  boxlang-miniserver" );
+		System.out.println();
+		System.out.println( "  # 📄 Start server with miniserver.json in current directory" );
+		System.out.println( "  boxlang-miniserver  # Automatically loads ./miniserver.json if it exists" );
+		System.out.println();
+		System.out.println( "  # 📄 Start server with custom JSON configuration file" );
+		System.out.println( "  boxlang-miniserver /path/to/config.json" );
+		System.out.println();
+		System.out.println( "  # 📄 Use JSON config with CLI override" );
+		System.out.println( "  boxlang-miniserver miniserver.json --port 9090" );
 		System.out.println();
 		System.out.println( "  # 🌐 Start server on port 80 with custom webroot" );
 		System.out.println( "  boxlang-miniserver --port 80 --webroot /var/www" );

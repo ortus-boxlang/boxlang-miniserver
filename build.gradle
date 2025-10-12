@@ -59,6 +59,8 @@ dependencies {
 	// https://mvnrepository.com/artifact/io.undertow/undertow-core/2.3.12.Final
 	implementation 'io.undertow:undertow-core:2.3.19.Final'
     implementation 'io.undertow:undertow-websockets-jsr:2.3.19.Final'
+	// https://mvnrepository.com/artifact/com.fasterxml.jackson.jr/jackson-jr-objects
+	implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.18.2'
 
     // Testing Dependencies
     testImplementation "org.junit.jupiter:junit-jupiter:6.+"
