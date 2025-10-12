@@ -20,6 +20,27 @@
 
 This BoxLang web server runtime is a minimal server powered by JBoss Undertow and the BoxLang language. It is designed to be a lightweight and fast server. It is perfect for serverless applications, microservices, and APIs.  If you want a more robust server, then you can use the [BoxLang CommandBox Server](https://boxlang.ortusbooks.com/getting-started/running-boxlang/commandbox).  You can find the full documentation here https://boxlang.ortusbooks.com/getting-started/running-boxlang/miniserver
 
+### JSON Configuration Support
+
+The MiniServer now supports loading configuration from a `miniserver.json` file, making it easier to manage server settings without typing long command-line arguments every time.
+
+- **Automatic Loading**: Place a `miniserver.json` in your current directory and run `boxlang-miniserver` with no arguments
+- **Explicit Path**: Run `boxlang-miniserver /path/to/config.json` to use a specific configuration file
+- **CLI Override**: Command-line arguments always override JSON configuration
+- **Documentation**: See [MINISERVER_JSON.md](MINISERVER_JSON.md) for complete details and examples
+
+Example `miniserver.json`:
+```json
+{
+  "port": 8080,
+  "host": "0.0.0.0",
+  "webRoot": "./www",
+  "debug": true,
+  "rewrites": true,
+  "healthCheck": true
+}
+```
+
 ## What is BoxLang?
 
 **BoxLang** is a modern dynamic JVM language that can be deployed on multiple runtimes: operating system (Windows/Mac/*nix/Embedded), web server, lambda, iOS, android, web assembly, and more. **BoxLang** combines many features from different programming languages, including Java, ColdFusion, Python, Ruby, Go, and PHP, to provide developers with a modern and expressive syntax.
