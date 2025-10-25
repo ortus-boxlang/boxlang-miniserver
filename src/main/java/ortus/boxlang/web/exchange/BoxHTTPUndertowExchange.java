@@ -437,7 +437,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			}
 			if ( isTextBasedContentType() ) {
 				try ( Scanner scanner = new java.util.Scanner( inputStream ).useDelimiter( "\\A" ) ) {
-					return scanner.next();
+					return scanner.hasNext() ? scanner.next() : "";
 				}
 			} else {
 				return inputStream.readAllBytes();
