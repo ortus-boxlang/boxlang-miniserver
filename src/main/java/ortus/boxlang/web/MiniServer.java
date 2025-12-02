@@ -44,6 +44,9 @@ import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.runtime.types.Struct;
+import ortus.boxlang.runtime.types.util.BooleanCaster;
+import ortus.boxlang.runtime.types.util.IntegerCaster;
+import ortus.boxlang.runtime.types.util.StringCaster;
 import ortus.boxlang.runtime.util.EncryptionUtil;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
@@ -249,8 +252,10 @@ public class MiniServer {
 
 		// Load JSON configuration if available
 		// Check if first argument is a path to a JSON file
+		boolean firstArgIsJsonFile = args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
+		
 		String jsonConfigPath = null;
-		if ( args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" ) ) {
+		if ( firstArgIsJsonFile ) {
 			Path jsonPath = Paths.get( args[ 0 ] ).toAbsolutePath();
 			if ( Files.exists( jsonPath ) ) {
 				jsonConfigPath = args[ 0 ];
@@ -271,7 +276,7 @@ public class MiniServer {
 
 		// Parse command line arguments (these override JSON and environment)
 		// If first arg was a JSON file path, skip it
-		int startIndex = ( args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" ) ) ? 1 : 0;
+		int startIndex = firstArgIsJsonFile ? 1 : 0;
 
 		for ( int i = startIndex; i < args.length; i++ ) {
 			String arg = args[ i ];
@@ -351,39 +356,39 @@ public class MiniServer {
 
 			System.out.println( "+ Loading configuration from: " + jsonFile );
 
-			// Apply JSON configuration values to config object
-			if ( jsonConfig.containsKey( "port" ) ) {
-				config.port = ( ( Number ) jsonConfig.get( "port" ) ).intValue();
+			// Apply JSON configuration values to config object using BoxLang casters for type safety
+			if ( jsonConfig.containsKey( "port" ) && jsonConfig.get( "port" ) != null ) {
+				config.port = IntegerCaster.cast( jsonConfig.get( "port" ) );
 			}
-			if ( jsonConfig.containsKey( "webRoot" ) ) {
-				config.webRoot = ( String ) jsonConfig.get( "webRoot" );
+			if ( jsonConfig.containsKey( "webRoot" ) && jsonConfig.get( "webRoot" ) != null ) {
+				config.webRoot = StringCaster.cast( jsonConfig.get( "webRoot" ) );
 			}
-			if ( jsonConfig.containsKey( "debug" ) ) {
-				config.debug = ( Boolean ) jsonConfig.get( "debug" );
+			if ( jsonConfig.containsKey( "debug" ) && jsonConfig.get( "debug" ) != null ) {
+				config.debug = BooleanCaster.cast( jsonConfig.get( "debug" ) );
 			}
-			if ( jsonConfig.containsKey( "host" ) ) {
-				config.host = ( String ) jsonConfig.get( "host" );
+			if ( jsonConfig.containsKey( "host" ) && jsonConfig.get( "host" ) != null ) {
+				config.host = StringCaster.cast( jsonConfig.get( "host" ) );
 			}
-			if ( jsonConfig.containsKey( "configPath" ) ) {
-				config.configPath = ( String ) jsonConfig.get( "configPath" );
+			if ( jsonConfig.containsKey( "configPath" ) && jsonConfig.get( "configPath" ) != null ) {
+				config.configPath = StringCaster.cast( jsonConfig.get( "configPath" ) );
 			}
-			if ( jsonConfig.containsKey( "serverHome" ) ) {
-				config.serverHome = ( String ) jsonConfig.get( "serverHome" );
+			if ( jsonConfig.containsKey( "serverHome" ) && jsonConfig.get( "serverHome" ) != null ) {
+				config.serverHome = StringCaster.cast( jsonConfig.get( "serverHome" ) );
 			}
-			if ( jsonConfig.containsKey( "rewrites" ) ) {
-				config.rewrites = ( Boolean ) jsonConfig.get( "rewrites" );
+			if ( jsonConfig.containsKey( "rewrites" ) && jsonConfig.get( "rewrites" ) != null ) {
+				config.rewrites = BooleanCaster.cast( jsonConfig.get( "rewrites" ) );
 			}
-			if ( jsonConfig.containsKey( "rewriteFileName" ) ) {
-				config.rewriteFileName = ( String ) jsonConfig.get( "rewriteFileName" );
+			if ( jsonConfig.containsKey( "rewriteFileName" ) && jsonConfig.get( "rewriteFileName" ) != null ) {
+				config.rewriteFileName = StringCaster.cast( jsonConfig.get( "rewriteFileName" ) );
 			}
-			if ( jsonConfig.containsKey( "healthCheck" ) ) {
-				config.healthCheck = ( Boolean ) jsonConfig.get( "healthCheck" );
+			if ( jsonConfig.containsKey( "healthCheck" ) && jsonConfig.get( "healthCheck" ) != null ) {
+				config.healthCheck = BooleanCaster.cast( jsonConfig.get( "healthCheck" ) );
 			}
-			if ( jsonConfig.containsKey( "healthCheckSecure" ) ) {
-				config.healthCheckSecure = ( Boolean ) jsonConfig.get( "healthCheckSecure" );
+			if ( jsonConfig.containsKey( "healthCheckSecure" ) && jsonConfig.get( "healthCheckSecure" ) != null ) {
+				config.healthCheckSecure = BooleanCaster.cast( jsonConfig.get( "healthCheckSecure" ) );
 			}
-			if ( jsonConfig.containsKey( "envFile" ) ) {
-				config.envFile = ( String ) jsonConfig.get( "envFile" );
+			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
+				config.envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );
 			}
 
 		} catch ( IOException e ) {
