@@ -342,7 +342,7 @@ public class MiniServer {
 			}
 
 			String	jsonContent	= Files.readString( jsonFile );
-			Map		jsonConfig	= JSON.std.mapFrom( jsonContent );
+			Map<String, Object> jsonConfig = JSON.std.mapFrom( jsonContent );
 
 			System.out.println( "+ Loading configuration from: " + jsonFile );
 
