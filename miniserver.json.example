@@ -6,5 +6,6 @@
   "rewrites": false,
   "rewriteFileName": "index.bxm",
   "healthCheck": false,
-  "healthCheckSecure": false
+  "healthCheckSecure": false,
+  "envFile": null
 }

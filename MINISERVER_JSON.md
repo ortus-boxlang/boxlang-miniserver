@@ -41,6 +41,7 @@ All the following options are supported in the JSON configuration file:
 | `rewriteFileName` | string | "index.bxm" | Rewrite target file |
 | `healthCheck` | boolean | false | Enable health check endpoints |
 | `healthCheckSecure` | boolean | false | Restrict detailed health info to localhost only |
+| `envFile` | string | null | Path to custom environment file (relative or absolute) |
 
 ## Example Configuration Files
 
@@ -75,7 +76,8 @@ All the following options are supported in the JSON configuration file:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": true,
-  "serverHome": "/opt/boxlang"
+  "serverHome": "/opt/boxlang",
+  "envFile": "/etc/boxlang/.env.production"
 }
 ```
 
@@ -91,7 +93,8 @@ All the following options are supported in the JSON configuration file:
   "rewrites": true,
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
-  "healthCheckSecure": false
+  "healthCheckSecure": false,
+  "envFile": ".env.production"
 }
 ```
 
@@ -118,3 +121,25 @@ The server will start on port **9090** (CLI overrides all).
 - Null values in the JSON file will be treated as "not set"
 - Boolean values must be lowercase (`true` or `false`)
 - String paths can be relative or absolute
+
+### Environment File Loading
+
+The `envFile` option allows you to specify a custom environment file to load instead of the default `.env` file in the webroot:
+
+- If `envFile` is not specified, the server looks for `.env` in the webroot directory (default behavior)
+- If `envFile` is specified, it loads that file instead
+- The path can be relative (resolved from current directory) or absolute
+- Environment variables are loaded as system properties and can be used throughout the application
+
+Example:
+```json
+{
+  "envFile": ".env.local"
+}
+```
+or
+```json
+{
+  "envFile": "/etc/myapp/.env.production"
+}
+```

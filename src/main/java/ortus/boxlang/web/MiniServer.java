@@ -131,6 +131,7 @@ public class MiniServer {
 		public String	rewriteFileName		= DEFAULT_REWRITE_FILE;
 		public Boolean	healthCheck			= false;
 		public Boolean	healthCheckSecure	= false;
+		public String	envFile				= null;
 
 		/**
 		 * Validates the configuration and throws IllegalArgumentException if invalid
@@ -162,7 +163,7 @@ public class MiniServer {
 			Path absWebRoot = normalizeWebroot( config.webRoot );
 
 			// Load up any .env files if they exist
-			loadEnvFiles( absWebRoot );
+			loadEnvFiles( absWebRoot, config );
 
 			// Start the server
 			startServer( config, absWebRoot );
@@ -178,13 +179,28 @@ public class MiniServer {
 	}
 
 	/**
-	 * Loads environment variables from a .env file in the web root directory.
+	 * Loads environment variables from a .env file in the web root directory or from a custom env file.
 	 *
 	 * @param absWebRoot The absolute path to the web root directory
+	 * @param config     The server configuration (may contain custom envFile path)
 	 */
-	private static void loadEnvFiles( Path absWebRoot ) {
-		// Load .env files if they exist in the web root
-		Path envFile = absWebRoot.resolve( ".env" );
+	private static void loadEnvFiles( Path absWebRoot, ServerConfig config ) {
+		Path envFile = null;
+
+		// Check if a custom env file is specified in the configuration
+		if ( config.envFile != null && !config.envFile.trim().isEmpty() ) {
+			// Use custom env file path (can be relative or absolute)
+			envFile = Paths.get( config.envFile );
+			// If relative, resolve against current directory
+			if ( !envFile.isAbsolute() ) {
+				envFile = Paths.get( System.getProperty( "user.dir" ) ).resolve( config.envFile );
+			}
+			envFile = envFile.toAbsolutePath().normalize();
+		} else {
+			// Default behavior: look for .env in web root
+			envFile = absWebRoot.resolve( ".env" );
+		}
+
 		if ( envFile.toFile().exists() ) {
 			Properties properties = new Properties();
 			try {
@@ -356,6 +372,9 @@ public class MiniServer {
 			}
 			if ( jsonConfig.containsKey( "healthCheckSecure" ) ) {
 				config.healthCheckSecure = ( Boolean ) jsonConfig.get( "healthCheckSecure" );
+			}
+			if ( jsonConfig.containsKey( "envFile" ) ) {
+				config.envFile = ( String ) jsonConfig.get( "envFile" );
 			}
 
 		} catch ( IOException e ) {
@@ -676,7 +695,8 @@ public class MiniServer {
 		System.out.println( "    \"rewrites\": true," );
 		System.out.println( "    \"rewriteFileName\": \"index.bxm\"," );
 		System.out.println( "    \"healthCheck\": true," );
-		System.out.println( "    \"healthCheckSecure\": false" );
+		System.out.println( "    \"healthCheckSecure\": false," );
+		System.out.println( "    \"envFile\": \".env.local\"" );
 		System.out.println( "  }" );
 		System.out.println();
 		System.out.println( "⚙️  OPTIONS:" );
