@@ -36,10 +36,30 @@ Example `miniserver.json`:
   "host": "0.0.0.0",
   "webRoot": "./www",
   "debug": true,
+  "configPath": null,
+  "serverHome": null,
   "rewrites": true,
-  "healthCheck": true
+  "rewriteFileName": "index.bxm",
+  "healthCheck": true,
+  "healthCheckSecure": false,
+  "envFile": null
 }
 ```
+
+**Available Configuration Options:**
+- `port` (number) - Server port (default: 8080)
+- `host` (string) - Host to bind to (default: "0.0.0.0")
+- `webRoot` (string) - Web root directory path
+- `debug` (boolean) - Enable debug mode
+- `configPath` (string) - Path to BoxLang configuration file
+- `serverHome` (string) - BoxLang server home directory
+- `rewrites` (boolean) - Enable URL rewrites
+- `rewriteFileName` (string) - Rewrite target file (default: "index.bxm")
+- `healthCheck` (boolean) - Enable health check endpoints
+- `healthCheckSecure` (boolean) - Restrict detailed health info to localhost only
+- `envFile` (string) - Path to custom environment file
+
+For detailed descriptions, usage examples, and best practices, see [MINISERVER_JSON.md](MINISERVER_JSON.md).
 
 ## What is BoxLang?
 
