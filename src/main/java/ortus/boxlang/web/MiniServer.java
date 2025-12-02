@@ -196,6 +196,10 @@ public class MiniServer {
 				envFile = Paths.get( System.getProperty( "user.dir" ) ).resolve( config.envFile );
 			}
 			envFile = envFile.toAbsolutePath().normalize();
+			// Warn if custom env file specified but doesn't exist
+			if ( !envFile.toFile().exists() ) {
+				System.err.println( "Warning: Custom environment file not found: " + envFile );
+			}
 		} else {
 			// Default behavior: look for .env in web root
 			envFile = absWebRoot.resolve( ".env" );
