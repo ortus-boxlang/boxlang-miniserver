@@ -251,7 +251,12 @@ public class MiniServer {
 		// Check if first argument is a path to a JSON file
 		String jsonConfigPath = null;
 		if ( args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" ) ) {
-			jsonConfigPath = args[ 0 ];
+			Path jsonPath = Paths.get( args[ 0 ] ).toAbsolutePath();
+			if ( Files.exists( jsonPath ) ) {
+				jsonConfigPath = args[ 0 ];
+			} else {
+				throw new IllegalArgumentException( "JSON configuration file not found: " + args[ 0 ] );
+			}
 		} else {
 			// Look for miniserver.json in current directory
 			Path defaultJsonPath = Paths.get( System.getProperty( "user.dir" ), "miniserver.json" );
