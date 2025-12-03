@@ -47,21 +47,26 @@ repositories {
 dependencies {
 	// LOCAL DEVELOPMENT ONLY
 	// CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
-	if ( file( '../BoxLang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
-		def bxBoxLangPath = '../BoxLang/build/libs/boxlang-' + boxlangVersion + '.jar'
-		def bxWebsupportPath = '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar'
-		if (!file(bxBoxLangPath).exists()) {
-			throw new GradleException( 'BoxLang jar not found at expected path: \'' + bxBoxLangPath  + '\'')
-		}
-		if (!file(bxWebsupportPath).exists()) {
-			throw new GradleException( 'BoxLang Web Support jar not found at expected path: \'' + bxWebsupportPath  + '\'')
-		}
-		implementation files( bxBoxLangPath )
-		implementation files( bxWebsupportPath )
-	} else {
+	
+	def localBuild_bxBoxLangPath = '../BoxLang/build/libs/boxlang-' + boxlangVersion + '.jar'
+	def localBuild_bxWebSupportPath = '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar'
+
+	def thisRepo_bxBoxLangPath = 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar'
+	def thisRepo_bxWebSupportPath = 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar'
+
+	def hasLocalBuild = file( localBuild_bxBoxLangPath ).exists() && file( localBuild_bxWebSupportPath ).exists()
+	def hasThisRepoBuild = file( thisRepo_bxBoxLangPath ).exists() && file( thisRepo_bxWebSupportPath ).exists()
+
+	if ( hasLocalBuild ) {
+		implementation files( localBuild_bxBoxLangPath )
+		implementation files( localBuild_bxWebSupportPath )
+	} else if ( hasThisRepoBuild ) {
 		// Downloaded Dependencies
-		implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
-		implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
+		implementation files( thisRepo_bxBoxLangPath )
+		implementation files( thisRepo_bxWebSupportPath )
+	}
+	else {
+		throw new GradleException( 'Local machine BoxLang dependencies not found. See gradle file for target paths.' )
 	}
 
 	// https://mvnrepository.com/artifact/io.undertow/undertow-core/2.3.12.Final
