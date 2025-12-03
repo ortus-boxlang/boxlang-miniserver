@@ -47,9 +47,17 @@ repositories {
 dependencies {
 	// LOCAL DEVELOPMENT ONLY
 	// CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
-	if ( file( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
-		implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' )
-		implementation files( '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
+	if ( file( '../BoxLang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
+		def bxBoxLangPath = '../BoxLang/build/libs/boxlang-' + boxlangVersion + '.jar'
+		def bxWebsupportPath = '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar'
+		if (!file(bxBoxLangPath).exists()) {
+			throw new GradleException( 'BoxLang jar not found at expected path: \'' + bxBoxLangPath  + '\'')
+		}
+		if (!file(bxWebsupportPath).exists()) {
+			throw new GradleException( 'BoxLang Web Support jar not found at expected path: \'' + bxWebsupportPath  + '\'')
+		}
+		implementation files( bxBoxLangPath )
+		implementation files( bxWebsupportPath )
 	} else {
 		// Downloaded Dependencies
 		implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
