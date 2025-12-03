@@ -167,7 +167,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public void addResponseHeader( String name, String value ) {
-		exchange.getResponseHeaders().put( new HttpString( name ), value );
+		exchange.getResponseHeaders().addLast( new HttpString( name ), value );
 	}
 
 	@Override
