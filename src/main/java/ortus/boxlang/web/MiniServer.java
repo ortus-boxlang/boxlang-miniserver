@@ -420,7 +420,7 @@ public class MiniServer {
 		System.out.println( "+ Starting BoxLang Runtime..." );
 
 		// Startup the runtime
-		BoxRuntime	runtime		= BoxRuntime.getInstance( config.debug, config.configPath, config.serverHome );
+		BoxRuntime	runtime		= BoxRuntime.getInstance( config.debug, config.configPath, config.serverHome ).waitForStart();
 		IStruct		versionInfo	= runtime.getVersionInfo();
 		System.out.println(
 		    "  - BoxLang Version: " + versionInfo.getAsString( Key.of( "version" ) ) + " (Built On: "

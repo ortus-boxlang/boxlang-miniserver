@@ -56,7 +56,29 @@ public class FrameworkRewritesBuilder implements HandlerBuilder {
 	}
 
 	public HandlerWrapper build( final Map<String, Object> config ) {
-		String fileName = ( String ) config.get( "fileName" );
+		String			fileName	= ( String ) config.get( "fileName" );
+		// extract file extension including period from rewrite file
+		int				dotLocation	= fileName.lastIndexOf( '.' );
+		final String	rewriteFileExtension;
+		final String	classExt;
+		final String	scriptExt;
+		if ( dotLocation < 0 ) {
+			rewriteFileExtension	= null;
+			classExt				= null;
+			scriptExt				= null;
+		} else {
+			rewriteFileExtension = fileName.substring( dotLocation );
+			if ( rewriteFileExtension.equalsIgnoreCase( ".cfm" ) ) {
+				classExt	= ".cfc";
+				scriptExt	= ".cfs";
+			} else if ( rewriteFileExtension.equalsIgnoreCase( ".cfs" ) ) {
+				classExt	= ".cfc";
+				scriptExt	= ".cfm";
+			} else {
+				classExt	= ".bx";
+				scriptExt	= ".bxs";
+			}
+		}
 
 		return new HandlerWrapper() {
 
@@ -65,6 +87,18 @@ public class FrameworkRewritesBuilder implements HandlerBuilder {
 				List<PredicatedHandler> ph = PredicatedHandlersParser.parse(
 				    "not regex('^/(ws|\\.well-known)/.*')"
 				        + "and not path(/favicon.ico)"
+				// In the unlikely event that the rewrite file has no extension, ignore
+				// otherwise, don't rewrite requests that already target the rewrite file
+				// extension, even if they don't exist on disk. (Likely a CF mapping)
+				        + ( rewriteFileExtension != null
+				            ? " and not path-suffix-nocase( '" + rewriteFileExtension + "' )"
+				            : "" )
+				        + ( classExt != null
+				            ? " and not path-suffix-nocase( '" + classExt + "' )"
+				            : "" )
+				        + ( scriptExt != null
+				            ? " and not path-suffix-nocase( '" + scriptExt + "' )"
+				            : "" )
 				        + " and not is-file"
 				        + " and not is-directory -> rewrite( '/" + fileName + "%{DECODED_REQUEST_PATH}' )",
 				    MiniServer.class.getClassLoader()

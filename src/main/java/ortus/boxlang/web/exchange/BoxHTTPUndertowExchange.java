@@ -167,7 +167,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public void addResponseHeader( String name, String value ) {
-		exchange.getResponseHeaders().put( new HttpString( name ), value );
+		exchange.getResponseHeaders().addLast( new HttpString( name ), value );
 	}
 
 	@Override
@@ -437,10 +437,17 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			}
 			if ( isTextBasedContentType() ) {
 				try ( Scanner scanner = new java.util.Scanner( inputStream ).useDelimiter( "\\A" ) ) {
-					return scanner.next();
+					return scanner.hasNext() ? scanner.next() : "";
 				}
 			} else {
-				return inputStream.readAllBytes();
+				byte[] responseBytes = inputStream.readAllBytes();
+				// If there is no content type and no bytes, return an empty string
+				// The HTTP spec is ambgiuous about how to represent a non-existent body,
+				// so we just return an empty string in this case to follow historical precedent.
+				if ( responseBytes.length == 0 && getRequestContentType() == null ) {
+					return "";
+				}
+				return responseBytes;
 			}
 		} catch ( IOException e ) {
 			e.printStackTrace();
