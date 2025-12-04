@@ -41,12 +41,12 @@ import io.undertow.server.handlers.resource.ResourceHandler;
 import io.undertow.server.handlers.resource.ResourceManager;
 import ortus.boxlang.runtime.BoxRunner;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.dynamic.casters.BooleanCaster;
+import ortus.boxlang.runtime.dynamic.casters.IntegerCaster;
+import ortus.boxlang.runtime.dynamic.casters.StringCaster;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.runtime.types.Struct;
-import ortus.boxlang.runtime.types.util.BooleanCaster;
-import ortus.boxlang.runtime.types.util.IntegerCaster;
-import ortus.boxlang.runtime.types.util.StringCaster;
 import ortus.boxlang.runtime.util.EncryptionUtil;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
@@ -252,9 +252,9 @@ public class MiniServer {
 
 		// Load JSON configuration if available
 		// Check if first argument is a path to a JSON file
-		boolean firstArgIsJsonFile = args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
-		
-		String jsonConfigPath = null;
+		boolean	firstArgIsJsonFile	= args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
+
+		String	jsonConfigPath		= null;
 		if ( firstArgIsJsonFile ) {
 			Path jsonPath = Paths.get( args[ 0 ] ).toAbsolutePath();
 			if ( Files.exists( jsonPath ) ) {
@@ -351,8 +351,8 @@ public class MiniServer {
 				throw new IllegalArgumentException( "JSON configuration file not found: " + jsonPath );
 			}
 
-			String	jsonContent	= Files.readString( jsonFile );
-			Map<String, Object> jsonConfig = JSON.std.mapFrom( jsonContent );
+			String				jsonContent	= Files.readString( jsonFile );
+			Map<String, Object>	jsonConfig	= JSON.std.mapFrom( jsonContent );
 
 			System.out.println( "+ Loading configuration from: " + jsonFile );
 
