@@ -5,6 +5,7 @@ The BoxLang MiniServer supports loading configuration from a JSON file. This all
 ## Usage
 
 ### Automatic Loading
+
 If you run `boxlang-miniserver` with no arguments, it will automatically look for a `miniserver.json` file in the current directory:
 
 ```bash
@@ -12,6 +13,7 @@ boxlang-miniserver
 ```
 
 ### Explicit Path
+
 You can also specify the path to a JSON configuration file:
 
 ```bash
@@ -19,6 +21,7 @@ boxlang-miniserver /path/to/config.json
 ```
 
 ### Override with CLI
+
 Command-line arguments always override JSON configuration:
 
 ```bash
@@ -46,6 +49,7 @@ All the following options are supported in the JSON configuration file:
 ## Example Configuration Files
 
 ### Basic Configuration
+
 ```json
 {
   "port": 8080,
@@ -54,6 +58,7 @@ All the following options are supported in the JSON configuration file:
 ```
 
 ### Development Configuration
+
 ```json
 {
   "port": 8080,
@@ -66,6 +71,7 @@ All the following options are supported in the JSON configuration file:
 ```
 
 ### Production Configuration
+
 ```json
 {
   "port": 80,
@@ -82,6 +88,7 @@ All the following options are supported in the JSON configuration file:
 ```
 
 ### Complete Configuration
+
 ```json
 {
   "port": 8080,
@@ -108,6 +115,7 @@ Configuration values are loaded in the following order (later sources override e
 4. **Command-line arguments** - Explicit CLI flags
 
 For example, if you have:
+
 - Environment variable: `BOXLANG_PORT=3000`
 - JSON file: `"port": 8080`
 - CLI argument: `--port 9090`
@@ -132,12 +140,15 @@ The `envFile` option allows you to specify a custom environment file to load ins
 - Environment variables are loaded as system properties and can be used throughout the application
 
 Example:
+
 ```json
 {
   "envFile": ".env.local"
 }
 ```
+
 or
+
 ```json
 {
   "envFile": "/etc/myapp/.env.production"
