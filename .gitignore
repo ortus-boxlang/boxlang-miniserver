@@ -15,3 +15,6 @@ grapher/**
 src/test/resources/libs/
 /wwwServerHome
 /www
+
+# Ignore local miniserver.json configuration files (but not .example)
+miniserver.json

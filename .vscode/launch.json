@@ -38,6 +38,16 @@
 				"src/test/www",
 				"--debug"
 			]
+		},
+		{
+			"type": "java",
+			"name": "MiniServer-Example-Config",
+			"request": "launch",
+			"mainClass": "ortus.boxlang.web.MiniServer",
+			"projectName": "boxlang-miniserver",
+			"args": [
+				"src/test/resources/miniserver.json"
+			]
 		}
 	]
 }

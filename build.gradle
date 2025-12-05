@@ -9,7 +9,7 @@ plugins {
 	// This produces the distributions and scripts for any OS
 	id "application"
     // For source code formatting
-    id "com.diffplug.spotless" version "8.0.0"
+    id "com.diffplug.spotless" version "8.1.0"
 	// https://github.com/harbby/gradle-serviceloader
     id "com.github.harbby.gradle.serviceloader" version "1.1.9"
 	// Shadow
@@ -21,7 +21,7 @@ plugins {
 	// Maven Publisher
 	id 'maven-publish'
 	id 'signing'
-	id 'com.gradleup.nmcp.aggregation' version "1.2.0"
+	id 'com.gradleup.nmcp.aggregation' version "1.3.0"
 }
 
 /**
@@ -56,16 +56,17 @@ dependencies {
 		implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
 	}
 
-	// https://mvnrepository.com/artifact/io.undertow/undertow-core/2.3.12.Final
-	implementation 'io.undertow:undertow-core:2.3.20.Final'
-    implementation 'io.undertow:undertow-websockets-jsr:2.3.20.Final'
+  // Runtime Dependencies
+  implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.18.2'
+  implementation 'io.undertow:undertow-core:2.3.20.Final'
+  implementation 'io.undertow:undertow-websockets-jsr:2.3.20.Final'
 
-    // Testing Dependencies
-    testImplementation "org.junit.jupiter:junit-jupiter:6.+"
-	testImplementation "org.mockito:mockito-core:5.+"
-	testImplementation "com.google.truth:truth:1.+"
-	// Explicitly declare the JUnit platform launcher (to avoid deprecation)
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+  // Testing Dependencies
+  testImplementation "org.junit.jupiter:junit-jupiter:6.+"
+  testImplementation "org.mockito:mockito-core:5.+"
+  testImplementation "com.google.truth:truth:1.+"
+  // Explicitly declare the JUnit platform launcher (to avoid deprecation)
+  testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 /**

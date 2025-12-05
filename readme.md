@@ -20,6 +20,47 @@
 
 This BoxLang web server runtime is a minimal server powered by JBoss Undertow and the BoxLang language. It is designed to be a lightweight and fast server. It is perfect for serverless applications, microservices, and APIs.  If you want a more robust server, then you can use the [BoxLang CommandBox Server](https://boxlang.ortusbooks.com/getting-started/running-boxlang/commandbox).  You can find the full documentation here https://boxlang.ortusbooks.com/getting-started/running-boxlang/miniserver
 
+### JSON Configuration Support
+
+The MiniServer now supports loading configuration from a `miniserver.json` file, making it easier to manage server settings without typing long command-line arguments every time.
+
+- **Automatic Loading**: Place a `miniserver.json` in your current directory and run `boxlang-miniserver` with no arguments
+- **Explicit Path**: Run `boxlang-miniserver /path/to/config.json` to use a specific configuration file
+- **CLI Override**: Command-line arguments always override JSON configuration
+- **Documentation**: See [MINISERVER_JSON.md](MINISERVER_JSON.md) for complete details and examples
+
+Example `miniserver.json`:
+```json
+{
+  "port": 8080,
+  "host": "0.0.0.0",
+  "webRoot": "./www",
+  "debug": true,
+  "configPath": null,
+  "serverHome": null,
+  "rewrites": true,
+  "rewriteFileName": "index.bxm",
+  "healthCheck": true,
+  "healthCheckSecure": false,
+  "envFile": null
+}
+```
+
+**Available Configuration Options:**
+- `port` (number) - Server port (default: 8080)
+- `host` (string) - Host to bind to (default: "0.0.0.0")
+- `webRoot` (string) - Web root directory path
+- `debug` (boolean) - Enable debug mode
+- `configPath` (string) - Path to BoxLang configuration file
+- `serverHome` (string) - BoxLang server home directory
+- `rewrites` (boolean) - Enable URL rewrites
+- `rewriteFileName` (string) - Rewrite target file (default: "index.bxm")
+- `healthCheck` (boolean) - Enable health check endpoints
+- `healthCheckSecure` (boolean) - Restrict detailed health info to localhost only
+- `envFile` (string) - Path to custom environment file
+
+For detailed descriptions, usage examples, and best practices, see [MINISERVER_JSON.md](MINISERVER_JSON.md).
+
 ## What is BoxLang?
 
 **BoxLang** is a modern dynamic JVM language that can be deployed on multiple runtimes: operating system (Windows/Mac/*nix/Embedded), web server, lambda, iOS, android, web assembly, and more. **BoxLang** combines many features from different programming languages, including Java, ColdFusion, Python, Ruby, Go, and PHP, to provide developers with a modern and expressive syntax.
