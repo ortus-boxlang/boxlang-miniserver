@@ -97,6 +97,16 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	List<FileUpload>				fileUploads	= new ArrayList<>();
 
 	/**
+	 * Cache of the form fields
+	 */
+	Map<String, String[]>			formFields	= null;
+
+	/**
+	 * Cache of the url params
+	 */
+	Map<String, String[]>			urlParams	= null;
+
+	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
 	 *
 	 * @param exchange The Undertow exchange for this request
@@ -323,6 +333,10 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public Map<String, String[]> getRequestURLMap() {
+		if ( urlParams != null ) {
+			return urlParams;
+		}
+
 		Map<String, Deque<String>>	queryParameters			= exchange.getQueryParameters();
 		Map<String, String[]>		queryParametersArray	= new HashMap<>();
 		for ( Map.Entry<String, Deque<String>> entry : queryParameters.entrySet() ) {
@@ -331,11 +345,17 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			String[]		valueArray	= valueDeque.toArray( new String[ 0 ] );
 			queryParametersArray.put( key, valueArray );
 		}
-		return queryParametersArray;
+		urlParams = queryParametersArray;
+
+		return urlParams;
 	}
 
 	@Override
 	public Map<String, String[]> getRequestFormMap() {
+		if ( formFields != null ) {
+			return formFields;
+		}
+
 		var formParserBuilder = FormParserFactory.builder();
 		// The Form Parse factory builder doesn't actually let you set the properties of the default parsers.
 		// Instead of manually creating them, I'll just look for the one we care about, and tweak it.
@@ -386,9 +406,11 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 				        } )
 				        .toArray( String[]::new ) );
 			}
-			return formMap;
+			formFields = formMap;
+			return formFields;
 		} else {
-			return Collections.emptyMap();
+			formFields = Collections.emptyMap();
+			return formFields;
 		}
 
 	}
@@ -450,7 +472,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 				return responseBytes;
 			}
 		} catch ( IOException e ) {
-			e.printStackTrace();
+			// e.printStackTrace();
 			return "";
 		}
 	}
