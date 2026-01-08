@@ -47,7 +47,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup CommandBox
         uses: Ortus-Solutions/setup-commandbox@v2.0.1
@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload Build Artifacts
         if: success()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: boxlang-build
           path: |
@@ -210,17 +210,17 @@ jobs:
       contents: write
     steps:
       - name: Checkout Development Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: env.LTS == 'false'
         with:
           ref: development
 
       - name: Checkout LTS Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: env.LTS == 'true'
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: boxlang-build
           path: .tmp
