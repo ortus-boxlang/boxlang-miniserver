@@ -45,6 +45,8 @@ All the following options are supported in the JSON configuration file:
 | `healthCheck` | boolean | false | Enable health check endpoints |
 | `healthCheckSecure` | boolean | false | Restrict detailed health info to localhost only |
 | `envFile` | string | null | Path to custom environment file (relative or absolute) |
+| `warmupUrl` | string | null | Single URL to call after server starts (for application warmup) |
+| `warmupUrls` | array | [] | Array of URLs to call after server starts (for application warmup) |
 
 ## Example Configuration Files
 
@@ -101,7 +103,34 @@ All the following options are supported in the JSON configuration file:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": false,
-  "envFile": ".env.production"
+  "envFile": ".env.production",
+  "warmupUrl": "/index.bxm"
+}
+```
+
+### Configuration with Warmup URLs
+
+Single warmup URL:
+
+```json
+{
+  "port": 8080,
+  "webRoot": "./www",
+  "warmupUrl": "/app/warmup"
+}
+```
+
+Multiple warmup URLs:
+
+```json
+{
+  "port": 8080,
+  "webRoot": "./www",
+  "warmupUrls": [
+    "/app/init",
+    "/health",
+    "http://localhost:8080/cache/preload"
+  ]
 }
 ```
 
@@ -154,3 +183,41 @@ or
   "envFile": "/etc/myapp/.env.production"
 }
 ```
+
+### Warmup URLs
+
+The `warmupUrl` and `warmupUrls` options allow you to specify URLs that should be called immediately after the server starts. This is useful for:
+
+- Initializing application caches
+- Pre-loading data
+- Triggering startup routines
+- Ensuring the application is fully ready before serving traffic
+
+**Single URL:**
+
+```json
+{
+  "warmupUrl": "/app/init"
+}
+```
+
+**Multiple URLs (array):**
+
+```json
+{
+  "warmupUrls": [
+    "/app/cache/warm",
+    "/app/db/init",
+    "http://localhost:8080/health"
+  ]
+}
+```
+
+**Notes:**
+- URLs can be relative (e.g., `/app/init`) or absolute (e.g., `http://localhost:8080/health`)
+- Relative URLs are resolved against the server's base URL
+- URLs are called in the order specified
+- Each request has a 60-second timeout
+- Success (2xx-3xx) and failure (4xx-5xx) responses are logged
+- Failed warmup requests do not prevent the server from starting
+- You can use both via CLI with `--warmup-url` (can be repeated) or in JSON config

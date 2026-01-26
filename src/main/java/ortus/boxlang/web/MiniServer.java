@@ -19,9 +19,15 @@ package ortus.boxlang.web;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -124,17 +130,18 @@ public class MiniServer {
 	 */
 	public static class ServerConfig {
 
-		public int		port				= DEFAULT_PORT;
-		public String	webRoot				= "";
-		public Boolean	debug				= null;
-		public String	host				= DEFAULT_HOST;
-		public String	configPath			= null;
-		public String	serverHome			= null;
-		public Boolean	rewrites			= false;
-		public String	rewriteFileName		= DEFAULT_REWRITE_FILE;
-		public Boolean	healthCheck			= false;
-		public Boolean	healthCheckSecure	= false;
-		public String	envFile				= null;
+		public int			port				= DEFAULT_PORT;
+		public String		webRoot				= "";
+		public Boolean		debug				= null;
+		public String		host				= DEFAULT_HOST;
+		public String		configPath			= null;
+		public String		serverHome			= null;
+		public Boolean		rewrites			= false;
+		public String		rewriteFileName		= DEFAULT_REWRITE_FILE;
+		public Boolean		healthCheck			= false;
+		public Boolean		healthCheckSecure	= false;
+		public String		envFile				= null;
+		public List<String>	warmupUrls			= new ArrayList<>();
 
 		/**
 		 * Validates the configuration and throws IllegalArgumentException if invalid
@@ -328,6 +335,11 @@ public class MiniServer {
 				config.healthCheck = true;
 			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
 				config.healthCheckSecure = true;
+			} else if ( arg.equalsIgnoreCase( "--warmup-url" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Warmup URL argument requires a value" );
+				}
+				config.warmupUrls.add( args[ ++i ] );
 			} else if ( arg.startsWith( "-" ) ) {
 				throw new IllegalArgumentException( "Unknown argument: " + arg );
 			}
@@ -390,6 +402,20 @@ public class MiniServer {
 			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
 				config.envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );
 			}
+			// Handle warmupUrl (single string) or warmupUrls (array)
+			if ( jsonConfig.containsKey( "warmupUrl" ) && jsonConfig.get( "warmupUrl" ) != null ) {
+				config.warmupUrls.add( StringCaster.cast( jsonConfig.get( "warmupUrl" ) ) );
+			}
+			if ( jsonConfig.containsKey( "warmupUrls" ) && jsonConfig.get( "warmupUrls" ) != null ) {
+				Object warmupUrlsObj = jsonConfig.get( "warmupUrls" );
+				if ( warmupUrlsObj instanceof List ) {
+					@SuppressWarnings( "unchecked" )
+					List<Object> urlList = ( List<Object> ) warmupUrlsObj;
+					for ( Object url : urlList ) {
+						config.warmupUrls.add( StringCaster.cast( url ) );
+					}
+				}
+			}
 
 		} catch ( IOException e ) {
 			throw new IllegalArgumentException( "Failed to read JSON configuration file: " + jsonPath + " - " + e.getMessage(), e );
@@ -439,7 +465,53 @@ public class MiniServer {
 		long	totalStartTime	= System.currentTimeMillis() - sTime;
 		String	serverUrl		= "http://" + config.host.replace( "0.0.0.0", "localhost" ) + ":" + config.port;
 		System.out.println( "+ BoxLang MiniServer started in " + totalStartTime + "ms at: " + serverUrl );
+
+		// Execute warmup URLs if configured
+		if ( !config.warmupUrls.isEmpty() ) {
+			executeWarmupUrls( config.warmupUrls, serverUrl );
+		}
+
 		System.out.println( "Press Ctrl+C to stop the server." );
+	}
+
+	/**
+	 * Executes warmup URLs to initialize the application.
+	 *
+	 * @param warmupUrls The list of URLs to call
+	 * @param serverUrl  The base server URL
+	 */
+	private static void executeWarmupUrls( List<String> warmupUrls, String serverUrl ) {
+		System.out.println( "+ Executing warmup URLs..." );
+		HttpClient client = HttpClient.newBuilder()
+		    .connectTimeout( Duration.ofSeconds( 30 ) )
+		    .build();
+
+		for ( String url : warmupUrls ) {
+			try {
+				// Resolve relative URLs against the server URL
+				String fullUrl = url.startsWith( "http" ) ? url : serverUrl + ( url.startsWith( "/" ) ? url : "/" + url );
+
+				System.out.println( "  - Calling: " + fullUrl );
+				long					startTime	= System.currentTimeMillis();
+
+				HttpRequest				request		= HttpRequest.newBuilder()
+				    .uri( URI.create( fullUrl ) )
+				    .timeout( Duration.ofSeconds( 60 ) )
+				    .GET()
+				    .build();
+
+				HttpResponse<String>	response	= client.send( request, HttpResponse.BodyHandlers.ofString() );
+				long					duration	= System.currentTimeMillis() - startTime;
+
+				if ( response.statusCode() >= 200 && response.statusCode() < 400 ) {
+					System.out.println( "    ✓ Success (" + response.statusCode() + ") in " + duration + "ms" );
+				} else {
+					System.err.println( "    ✗ Failed (" + response.statusCode() + ") in " + duration + "ms" );
+				}
+			} catch ( Exception e ) {
+				System.err.println( "    ✗ Error calling " + url + ": " + e.getMessage() );
+			}
+		}
 	}
 
 	/**
@@ -710,7 +782,9 @@ public class MiniServer {
 		System.out.println( "    \"rewriteFileName\": \"index.bxm\"," );
 		System.out.println( "    \"healthCheck\": true," );
 		System.out.println( "    \"healthCheckSecure\": false," );
-		System.out.println( "    \"envFile\": \".env.local\"" );
+		System.out.println( "    \"envFile\": \".env.local\"," );
+		System.out.println( "    \"warmupUrl\": \"/index.bxm\"," );
+		System.out.println( "    \"warmupUrls\": [\"/app/init\", \"http://localhost:8080/health\"]" );
 		System.out.println( "  }" );
 		System.out.println();
 		System.out.println( "⚙️  OPTIONS:" );
@@ -725,6 +799,7 @@ public class MiniServer {
 		System.out.println( "  -r, --rewrites [FILE]   🔀 Enable URL rewrites (default file: index.bxm)" );
 		System.out.println( "      --health-check      ❤️  Enable health check endpoints (/health, /health/ready, /health/live)" );
 		System.out.println( "      --health-check-secure 🔒 Restrict detailed health info to localhost only" );
+		System.out.println( "      --warmup-url <URL>  🔥 URL to call after server starts (can be repeated for multiple URLs)" );
 		System.out.println();
 		System.out.println( "🌍 ENVIRONMENT VARIABLES:" );
 		System.out.println( "  BOXLANG_CONFIG          📁 Path to BoxLang configuration file" );
