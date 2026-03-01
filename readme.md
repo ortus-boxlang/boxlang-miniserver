@@ -61,6 +61,29 @@ Example `miniserver.json`:
 
 For detailed descriptions, usage examples, and best practices, see [MINISERVER_JSON.md](MINISERVER_JSON.md).
 
+### BoxLang Configuration Convention (`.boxlang.json`)
+
+The MiniServer supports a **convention-based BoxLang configuration** lookup. On startup, if no `configPath` has been set (via environment variable, `miniserver.json`, or `--configPath` CLI argument), the server will automatically check for a `.boxlang.json` file in the directory where the server is started.
+
+If found, it is used as the BoxLang runtime configuration file — no extra flags required.
+
+**Priority order (highest to lowest):**
+1. `--configPath` / `-c` CLI argument
+2. `configPath` key in `miniserver.json`
+3. `BOXLANG_CONFIG` environment variable
+4. `.boxlang.json` in the server startup directory *(convention/fallback)*
+
+**Example:**
+```
+/my-app
+├── .boxlang.json       ← auto-detected as BoxLang config
+├── miniserver.json
+└── www/
+    └── index.bxm
+```
+
+Just run `boxlang-miniserver` from `/my-app` and `.boxlang.json` will be picked up automatically.
+
 ## What is BoxLang?
 
 **BoxLang** is a modern dynamic JVM language that can be deployed on multiple runtimes: operating system (Windows/Mac/*nix/Embedded), web server, lambda, iOS, android, web assembly, and more. **BoxLang** combines many features from different programming languages, including Java, ColdFusion, Python, Ruby, Go, and PHP, to provide developers with a modern and expressive syntax.

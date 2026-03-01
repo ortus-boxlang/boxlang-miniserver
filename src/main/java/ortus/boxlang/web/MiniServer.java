@@ -345,6 +345,16 @@ public class MiniServer {
 			}
 		}
 
+		// Convention: auto-detect .boxlang.json in the current working directory
+		// Only applies if configPath has not been explicitly set via env var, JSON config, or CLI
+		if ( config.configPath == null ) {
+			Path conventionConfig = Paths.get( System.getProperty( "user.dir" ), ".boxlang.json" );
+			if ( Files.exists( conventionConfig ) ) {
+				config.configPath = conventionConfig.toAbsolutePath().toString();
+				System.out.println( "+ Detected BoxLang config via convention: " + config.configPath );
+			}
+		}
+
 		// Validate configuration
 		config.validate();
 		return config;
