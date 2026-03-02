@@ -47,6 +47,9 @@ All the following options are supported in the JSON configuration file:
 | `envFile` | string | null | Path to custom environment file (relative or absolute) |
 | `warmupUrl` | string | null | Single URL to call after server starts (for application warmup) |
 | `warmupUrls` | array | [] | Array of URLs to call after server starts (for application warmup) |
+| `undertowOptions` | object | *(see below)* | Undertow server-level options (`builder.setServerOption()`) |
+| `workerOptions` | object | {} | XNIO worker-level options (`builder.setWorkerOption()`) |
+| `socketOptions` | object | {} | XNIO socket-level options (`builder.setSocketOption()`) |
 
 ## Example Configuration Files
 
@@ -134,6 +137,109 @@ Multiple warmup URLs:
 }
 ```
 
+## Undertow & XNIO Tuning Options
+
+The MiniServer exposes three nested configuration maps that pass directly through to Undertow's builder, giving you full control over server, worker, and socket behaviour without requiring a custom build.
+
+### Default Values
+
+The following defaults replace Undertow's built-in 2 MB limits with sensible values for a general-purpose web server:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `MAX_ENTITY_SIZE` | **25 MB** (26,214,400 bytes) | Maximum size of any HTTP entity body (JSON, form posts, etc.) |
+| `MULTIPART_MAX_ENTITY_SIZE` | **100 MB** (104,857,600 bytes) | Maximum size for `multipart/form-data` file uploads |
+
+All other Undertow/XNIO options retain their built-in defaults unless you override them.
+
+### `undertowOptions`
+
+Keys must exactly match constant names in [`io.undertow.UndertowOptions`](https://github.com/undertow-io/undertow/blob/main/core/src/main/java/io/undertow/UndertowOptions.java). Applied via `builder.setServerOption()`.
+
+Commonly useful options:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `MAX_ENTITY_SIZE` | long | Max HTTP body size in bytes |
+| `MULTIPART_MAX_ENTITY_SIZE` | long | Max multipart upload size in bytes |
+| `MAX_HEADER_SIZE` | int | Max HTTP request header size in bytes (default: 1 MB) |
+| `IDLE_TIMEOUT` | int | Idle connection timeout in milliseconds |
+| `REQUEST_PARSE_TIMEOUT` | int | Max time to parse a request in milliseconds |
+| `NO_REQUEST_TIMEOUT` | int | Idle connection timeout when no request is in progress (ms) |
+| `MAX_PARAMETERS` | int | Max query/POST parameters (default: 1000) |
+| `MAX_HEADERS` | int | Max request headers (default: 200) |
+| `MAX_COOKIES` | int | Max cookies (default: 200) |
+| `ENABLE_HTTP2` | boolean | Enable HTTP/2 for HTTPS connections |
+| `RECORD_REQUEST_START_TIME` | boolean | Record request start time for access logging |
+
+### `workerOptions`
+
+Keys must match constant names in [`org.xnio.Options`](https://github.com/xnio/xnio/blob/3.x/api/src/main/java/org/xnio/Options.java). Applied via `builder.setWorkerOption()`.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `WORKER_IO_THREADS` | int | Number of I/O threads |
+| `WORKER_TASK_CORE_THREADS` | int | Core worker thread pool size |
+| `WORKER_TASK_MAX_THREADS` | int | Maximum worker thread pool size |
+| `WORKER_TASK_KEEPALIVE` | int | Milliseconds to keep idle threads alive |
+| `WORKER_TASK_LIMIT` | int | Max queued tasks before rejection |
+
+### `socketOptions`
+
+Keys must match constant names in [`org.xnio.Options`](https://github.com/xnio/xnio/blob/3.x/api/src/main/java/org/xnio/Options.java). Applied via `builder.setSocketOption()`.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `TCP_NODELAY` | boolean | Disable Nagle's algorithm (reduce latency) |
+| `RECEIVE_BUFFER` | int | TCP receive buffer size in bytes |
+| `SEND_BUFFER` | int | TCP send buffer size in bytes |
+| `KEEP_ALIVE` | boolean | Enable TCP keep-alive |
+| `BACKLOG` | int | Accept backlog (max queued connections) |
+| `READ_TIMEOUT` | int | Socket read timeout in milliseconds |
+| `WRITE_TIMEOUT` | int | Socket write timeout in milliseconds |
+| `REUSE_ADDRESSES` | boolean | Reuse addresses in TIME_WAIT state |
+
+### Example: Increase Upload Limits
+
+```json
+{
+  "undertowOptions": {
+    "MAX_ENTITY_SIZE": 104857600,
+    "MULTIPART_MAX_ENTITY_SIZE": 524288000
+  }
+}
+```
+
+### Example: Full Tuning Configuration
+
+```json
+{
+  "port": 8080,
+  "webRoot": "./www",
+  "undertowOptions": {
+    "MAX_ENTITY_SIZE": 52428800,
+    "MULTIPART_MAX_ENTITY_SIZE": 209715200,
+    "IDLE_TIMEOUT": 30000,
+    "MAX_PARAMETERS": 2000
+  },
+  "workerOptions": {
+    "WORKER_TASK_MAX_THREADS": 200,
+    "WORKER_IO_THREADS": 8
+  },
+  "socketOptions": {
+    "TCP_NODELAY": true,
+    "BACKLOG": 10000
+  }
+}
+```
+
+**Notes:**
+
+- Option key names are case-insensitive in the JSON — they are normalized to `UPPER_CASE` automatically
+- Unknown option names emit a warning at startup and are skipped — the server still starts
+- JSON number values are coerced to the correct type (`int`, `long`, or `boolean`) as declared by Undertow/XNIO
+- Worker and socket options both reference `org.xnio.Options`; the distinction is only which builder method is called
+
 ## Configuration Priority
 
 Configuration values are loaded in the following order (later sources override earlier ones):
@@ -214,6 +320,7 @@ The `warmupUrl` and `warmupUrls` options allow you to specify URLs that should b
 ```
 
 **Notes:**
+
 - URLs can be relative (e.g., `/app/init`) or absolute (e.g., `http://localhost:8080/health`)
 - Relative URLs are resolved against the server's base URL
 - URLs are called in the order specified

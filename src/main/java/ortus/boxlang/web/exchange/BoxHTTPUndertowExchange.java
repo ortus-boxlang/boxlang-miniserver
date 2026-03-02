@@ -158,19 +158,27 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	public void addResponseCookie( BoxCookie cookie ) {
 		if ( !isResponseStarted() ) {
 			Cookie c = new CookieImpl( cookie.getName(), cookie.getEncodedValue() );
-			if ( cookie.getDomain() != null )
-				c.setDomain( cookie.getDomain() );
-			if ( cookie.getPath() != null )
-				c.setPath( cookie.getPath() );
 			c.setSecure( cookie.isSecure() );
 			c.setHttpOnly( cookie.isHttpOnly() );
-			if ( cookie.getMaxAge() != null )
-				c.setMaxAge( cookie.getMaxAge() );
 			c.setSameSite( cookie.isSameSite() );
-			if ( cookie.getExpires() != null )
+
+			if ( cookie.getDomain() != null ) {
+				c.setDomain( cookie.getDomain() );
+			}
+			if ( cookie.getPath() != null ) {
+				c.setPath( cookie.getPath() );
+			}
+			if ( cookie.getMaxAge() != null ) {
+				c.setMaxAge( cookie.getMaxAge() );
+			}
+			if ( cookie.getExpires() != null ) {
 				c.setExpires( cookie.getExpires() );
-			if ( cookie.getSameSiteMode() != null )
+			}
+			if ( cookie.getSameSiteMode() != null ) {
 				c.setSameSiteMode( cookie.getSameSiteMode() );
+			}
+
+			// Undertow's CookieHandler will handle adding the Set-Cookie header with the correct formatting, so we just need to add the cookie to the exchange
 			exchange.setResponseCookie( c );
 		}
 	}

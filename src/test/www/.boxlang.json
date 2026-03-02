@@ -1,0 +1,35 @@
+/**
+ * BoxLang Configuration File
+ *
+ * Here are some of the available variables you can use in this file:
+ * ${boxlang-home} - The BoxLang home directory
+ * ${user-home} - The user's home directory
+ * ${user-dir} - The user's current directory
+ * ${java-temp} - The java temp directory
+ * ${env.variablename:defaultValue} - The value of a valid environment variable or the default value. Example: ${env.CFCONFIG_HOME:/etc/cfconfig}
+ */
+{
+	// This puts the entire runtime in debug mode
+	// Which will produce lots of debug output and metrics
+	// Also the debugging error template will be used if turned on
+	"debugMode": true,
+	// This setting if enabled will remove all the class files from the class generation directory
+	// This is useful for debugging and testing, but not recommended for production
+	"clearClassFilesOnStartup": true,
+	/**
+	 * The BoxLang module settings
+	 * The key is the module name and the value is a struct of settings for that specific module
+	 * The `enabled` property is a boolean that determines if the module should be enabled or not.  Default is true
+	 * The `settings` property is a struct of settings that are specific to the module and will be override the module settings
+	 */
+	"modules": {
+		// The Compat Module
+		// "compat": {
+		// 	"enabled": true,
+		// 	"settings": {
+		// 		"isLucee": true,
+		// 		"isAdobe": true
+		// 	}
+		// }
+	}
+}
