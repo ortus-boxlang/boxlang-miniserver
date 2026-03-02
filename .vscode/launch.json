@@ -35,8 +35,7 @@
 			"projectName": "boxlang-miniserver",
 			"args": [
 				"-w",
-				"src/test/www",
-				"--debug"
+				"src/test/www"
 			]
 		},
 		{

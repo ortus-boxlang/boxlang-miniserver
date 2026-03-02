@@ -258,6 +258,7 @@ public class MiniServer {
 		        + versionInfo.getAsString( Key.of( "buildDate" ) )
 		        + ")" );
 		System.out.println( "  - Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
+		System.out.println( "  - Logs Directory: " + runtime.getLoggingService().getLogsDirectory() );
 
 		// Build the web server
 		Undertow BLServer = buildWebServer( absWebRoot, config );
