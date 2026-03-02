@@ -77,7 +77,7 @@ public class WarmupUrlTest {
 		MiniServerConfig	config		= new MiniServerConfig();
 
 		// Act
-		List<String>			customUrls	= new ArrayList<>();
+		List<String>		customUrls	= new ArrayList<>();
 		customUrls.add( "/custom1" );
 		customUrls.add( "/custom2" );
 		config.warmupUrls = customUrls;

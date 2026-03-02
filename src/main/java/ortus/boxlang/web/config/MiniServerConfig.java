@@ -48,6 +48,7 @@ import ortus.boxlang.runtime.dynamic.casters.StringCaster;
  * - {@code socketOptions} → {@link org.xnio.Options} constants → {@code builder.setSocketOption()}
  *
  * Example miniserver.json:
+ * 
  * <pre>
  * {
  *   "port": 8080,
@@ -71,13 +72,13 @@ public class MiniServerConfig {
 	// -------------------------------------------------------------------------
 
 	/** Default port to listen on */
-	public static final int		DEFAULT_PORT			= 8080;
+	public static final int					DEFAULT_PORT			= 8080;
 
 	/** Default host to bind to */
-	public static final String	DEFAULT_HOST			= "0.0.0.0";
+	public static final String				DEFAULT_HOST			= "0.0.0.0";
 
 	/** Default rewrite target file when URL rewrites are enabled */
-	public static final String	DEFAULT_REWRITE_FILE	= "index.bxm";
+	public static final String				DEFAULT_REWRITE_FILE	= "index.bxm";
 
 	// -------------------------------------------------------------------------
 	// Default Undertow / XNIO Option Maps
@@ -125,9 +126,9 @@ public class MiniServerConfig {
 		// Replace Undertow's 2 MB multipart default with 100 MB for file uploads.
 		// Per Undertow docs, this should be larger than MAX_ENTITY_SIZE.
 		undertow.put( "MULTIPART_MAX_ENTITY_SIZE", 100L * 1024L * 1024L );
-		DEFAULT_UNDERTOW_OPTIONS = Collections.unmodifiableMap( undertow );
-		DEFAULT_WORKER_OPTIONS = Collections.unmodifiableMap( new LinkedHashMap<>() );
-		DEFAULT_SOCKET_OPTIONS = Collections.unmodifiableMap( new LinkedHashMap<>() );
+		DEFAULT_UNDERTOW_OPTIONS	= Collections.unmodifiableMap( undertow );
+		DEFAULT_WORKER_OPTIONS		= Collections.unmodifiableMap( new LinkedHashMap<>() );
+		DEFAULT_SOCKET_OPTIONS		= Collections.unmodifiableMap( new LinkedHashMap<>() );
 	}
 
 	// -------------------------------------------------------------------------
@@ -135,40 +136,40 @@ public class MiniServerConfig {
 	// -------------------------------------------------------------------------
 
 	/** Port to listen on. Default: {@value #DEFAULT_PORT} */
-	public int				port				= DEFAULT_PORT;
+	public int					port				= DEFAULT_PORT;
 
 	/** Web root path. Default: current working directory */
-	public String			webRoot				= "";
+	public String				webRoot				= "";
 
 	/** Enable BoxLang debug mode. Null means not set (runtime decides). */
-	public Boolean			debug				= null;
+	public Boolean				debug				= null;
 
 	/** Host address to bind to. Default: {@value #DEFAULT_HOST} */
-	public String			host				= DEFAULT_HOST;
+	public String				host				= DEFAULT_HOST;
 
 	/** Path to the BoxLang configuration file. Null means use BoxLang defaults. */
-	public String			configPath			= null;
+	public String				configPath			= null;
 
 	/** BoxLang server home directory. Null means use BoxLang defaults. */
-	public String			serverHome			= null;
+	public String				serverHome			= null;
 
 	/** Enable URL rewrites. Default: false */
-	public Boolean			rewrites			= false;
+	public Boolean				rewrites			= false;
 
 	/** Rewrite target file when rewrites are enabled. Default: {@value #DEFAULT_REWRITE_FILE} */
-	public String			rewriteFileName		= DEFAULT_REWRITE_FILE;
+	public String				rewriteFileName		= DEFAULT_REWRITE_FILE;
 
 	/** Enable health check endpoints. Default: false */
-	public Boolean			healthCheck			= false;
+	public Boolean				healthCheck			= false;
 
 	/** Restrict detailed health info to localhost only. Default: false */
-	public Boolean			healthCheckSecure	= false;
+	public Boolean				healthCheckSecure	= false;
 
 	/** Path to a .env file to load. Null means auto-detect from webroot. */
-	public String			envFile				= null;
+	public String				envFile				= null;
 
 	/** List of URLs to warm up after server starts. */
-	public List<String>		warmupUrls			= new ArrayList<>();
+	public List<String>			warmupUrls			= new ArrayList<>();
 
 	/**
 	 * Server-level Undertow options forwarded to {@code builder.setServerOption()}.
@@ -467,7 +468,7 @@ public class MiniServerConfig {
 			return;
 		}
 		Object raw = jsonConfig.get( key );
-		if ( !( raw instanceof Map ) ) {
+		if ( ! ( raw instanceof Map ) ) {
 			System.err.println( "Warning: '" + key + "' in miniserver.json is not an object — skipping" );
 			return;
 		}
