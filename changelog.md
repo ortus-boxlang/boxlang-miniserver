@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-03-04
+
 - <https://boxlang.ortusbooks.com/readme/release-history/1.11.0>
 
 ## [1.10.1] - 2026-02-04
@@ -65,7 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * * *
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.10.1...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/ortus-boxlang/boxlang-miniserver/compare/v1.8.0...v1.9.0
