@@ -30,6 +30,7 @@ The MiniServer now supports loading configuration from a `miniserver.json` file,
 - **Documentation**: See [MINISERVER_JSON.md](MINISERVER_JSON.md) for complete details and examples
 
 Example `miniserver.json`:
+
 ```json
 {
   "port": 8080,
@@ -42,11 +43,16 @@ Example `miniserver.json`:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": false,
-  "envFile": null
+  "envFile": null,
+  "undertowOptions": {
+    "MAX_ENTITY_SIZE": 26214400,
+    "MULTIPART_MAX_ENTITY_SIZE": 104857600
+  }
 }
 ```
 
 **Available Configuration Options:**
+
 - `port` (number) - Server port (default: 8080)
 - `host` (string) - Host to bind to (default: "0.0.0.0")
 - `webRoot` (string) - Web root directory path
@@ -58,8 +64,38 @@ Example `miniserver.json`:
 - `healthCheck` (boolean) - Enable health check endpoints
 - `healthCheckSecure` (boolean) - Restrict detailed health info to localhost only
 - `envFile` (string) - Path to custom environment file
+- `warmupUrl` (string) - Single URL to call after server starts
+- `warmupUrls` (array) - Multiple URLs to call after server starts
+- `undertowOptions` (object) - Undertow server-level tuning (e.g. upload size limits). Defaults: `MAX_ENTITY_SIZE` = 25 MB, `MULTIPART_MAX_ENTITY_SIZE` = 100 MB
+- `workerOptions` (object) - XNIO worker thread pool tuning
+- `socketOptions` (object) - XNIO socket-level tuning (e.g. TCP settings)
 
 For detailed descriptions, usage examples, and best practices, see [MINISERVER_JSON.md](MINISERVER_JSON.md).
+
+### BoxLang Configuration Convention (`.boxlang.json`)
+
+The MiniServer supports a **convention-based BoxLang configuration** lookup. On startup, if no `configPath` has been set (via environment variable, `miniserver.json`, or `--configPath` CLI argument), the server will automatically check for a `.boxlang.json` file in the directory where the server is started.
+
+If found, it is used as the BoxLang runtime configuration file — no extra flags required.
+
+**Priority order (highest to lowest):**
+
+1. `--configPath` / `-c` CLI argument
+2. `configPath` key in `miniserver.json`
+3. `BOXLANG_CONFIG` environment variable
+4. `.boxlang.json` in the server startup directory *(convention/fallback)*
+
+**Example:**
+
+```
+/my-app
+├── .boxlang.json       ← auto-detected as BoxLang config
+├── miniserver.json
+└── www/
+    └── index.bxm
+```
+
+Just run `boxlang-miniserver` from `/my-app` and `.boxlang.json` will be picked up automatically.
 
 ## What is BoxLang?
 
@@ -67,24 +103,24 @@ For detailed descriptions, usage examples, and best practices, see [MINISERVER_J
 
 **BoxLang** has been designed to be a highly adaptable and dynamic language to take advantage of all the modern features of the JVM and was designed with several goals in mind:
 
-* Be a rapid application development (RAD) scripting language and middleware.
-* Unstagnate the dynamic language ecosystem in Java.
-* Be dynamic, modular, lightweight, and fast.
-* Be 100% interoperable with Java.
-* Be modern, functional, and fluent (Think mixing CFML, Node, Kotlin, Java, and Clojure)
-* Be able to support multiple runtimes and deployment targets:
-  * Native OS Binaries (CLI Tooling, compilers, etc.)
-  * MiniServer
-  * Servlet Containers - CommandBox/Tomcat/Jetty/JBoss
-  * JSR223 Scripting Engines
-  * AWS Lambda
-  * Microsoft Azure Functions (Coming Soon)
-  * Android/iOS Devices (Coming Soon)
-  * Web assembly (Coming Soon)
-* Compile down to Java ByteCode
-* Allow backward compatibility with the existing ColdFusion/CFML language.
-* Great IDE, Debugger and Tooling: https://boxlang.ortusbooks.com/getting-started/ide-tooling
-* Scripting (Any OS and Shebang) and REPL capabilities
+- Be a rapid application development (RAD) scripting language and middleware.
+- Unstagnate the dynamic language ecosystem in Java.
+- Be dynamic, modular, lightweight, and fast.
+- Be 100% interoperable with Java.
+- Be modern, functional, and fluent (Think mixing CFML, Node, Kotlin, Java, and Clojure)
+- Be able to support multiple runtimes and deployment targets:
+  - Native OS Binaries (CLI Tooling, compilers, etc.)
+  - MiniServer
+  - Servlet Containers - CommandBox/Tomcat/Jetty/JBoss
+  - JSR223 Scripting Engines
+  - AWS Lambda
+  - Microsoft Azure Functions (Coming Soon)
+  - Android/iOS Devices (Coming Soon)
+  - Web assembly (Coming Soon)
+- Compile down to Java ByteCode
+- Allow backward compatibility with the existing ColdFusion/CFML language.
+- Great IDE, Debugger and Tooling: https://boxlang.ortusbooks.com/getting-started/ide-tooling
+- Scripting (Any OS and Shebang) and REPL capabilities
 
 You can find our docs here: https://boxlang.ortusbooks.com/
 
@@ -96,14 +132,14 @@ Apache License, Version 2.0.
 
 This project is a professional open source project and is available as FREE and open source to use.  Ortus Solutions, Corp provides commercial support, training and commercial subscriptions which include the following:
 
-* Professional Support and Priority Queuing
-* Remote Assistance and Troubleshooting
-* New Feature Requests and Custom Development
-* Custom SLAs
-* Application Modernization and Migration Services
-* Performance Audits
-* Enterprise Modules and Integrations
-* Much More
+- Professional Support and Priority Queuing
+- Remote Assistance and Troubleshooting
+- New Feature Requests and Custom Development
+- Custom SLAs
+- Application Modernization and Migration Services
+- Performance Audits
+- Enterprise Modules and Integrations
+- Much More
 
 Visit us at [BoxLang.io Plans](https://boxlang.io/plans) for more information.
 

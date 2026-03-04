@@ -23,19 +23,19 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import com.fasterxml.jackson.jr.ob.JSON;
+import org.xnio.Option;
+import org.xnio.Options;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
+import io.undertow.UndertowOptions;
 import io.undertow.predicate.Predicates;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -54,6 +54,7 @@ import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.runtime.types.Struct;
 import ortus.boxlang.runtime.util.EncryptionUtil;
+import ortus.boxlang.web.config.MiniServerConfig;
 import ortus.boxlang.web.handlers.BLHandler;
 import ortus.boxlang.web.handlers.FrameworkRewritesBuilder;
 import ortus.boxlang.web.handlers.HealthCheckHandler;
@@ -88,11 +89,8 @@ import ortus.boxlang.web.handlers.WelcomeFileHandler;
 public class MiniServer {
 
 	/**
-	 * Default constants
+	 * Server-level constants (not part of configuration)
 	 */
-	private static final int								DEFAULT_PORT			= 8080;
-	private static final String								DEFAULT_HOST			= "0.0.0.0";
-	private static final String								DEFAULT_REWRITE_FILE	= "index.bxm";
 	private static final int								GZIP_MIN_SIZE			= 1500;
 	private static final int								GZIP_PRIORITY			= 50;
 	private static final String								WEBSOCKET_PATH			= "/ws";
@@ -126,51 +124,34 @@ public class MiniServer {
 	private static final ThreadLocal<HttpServerExchange>	currentExchange			= new ThreadLocal<>();
 
 	/**
-	 * Configuration class for server settings
-	 */
-	public static class ServerConfig {
-
-		public int			port				= DEFAULT_PORT;
-		public String		webRoot				= "";
-		public Boolean		debug				= null;
-		public String		host				= DEFAULT_HOST;
-		public String		configPath			= null;
-		public String		serverHome			= null;
-		public Boolean		rewrites			= false;
-		public String		rewriteFileName		= DEFAULT_REWRITE_FILE;
-		public Boolean		healthCheck			= false;
-		public Boolean		healthCheckSecure	= false;
-		public String		envFile				= null;
-		public List<String>	warmupUrls			= new ArrayList<>();
-
-		/**
-		 * Validates the configuration and throws IllegalArgumentException if invalid
-		 */
-		public void validate() {
-			if ( port < 1 || port > 65535 ) {
-				throw new IllegalArgumentException( "Port must be between 1 and 65535, got: " + port );
-			}
-			if ( host == null || host.trim().isEmpty() ) {
-				throw new IllegalArgumentException( "Host cannot be null or empty" );
-			}
-			if ( rewriteFileName == null || rewriteFileName.trim().isEmpty() ) {
-				throw new IllegalArgumentException( "Rewrite file name cannot be null or empty" );
-			}
-		}
-	}
-
-	/**
 	 * Main method to start the BoxLang MiniServer.
 	 *
 	 * @param args Command line arguments. See Help for details.
 	 */
 	public static void main( String[] args ) {
+		// Check for informational flags before attempting configuration parsing
+		for ( String arg : args ) {
+			if ( arg.equalsIgnoreCase( "--help" ) || arg.equalsIgnoreCase( "-h" ) ) {
+				printHelp();
+				System.exit( 0 );
+			}
+			if ( arg.equalsIgnoreCase( "--version" ) || arg.equalsIgnoreCase( "-v" ) ) {
+				printVersion();
+				System.exit( 0 );
+			}
+		}
+
 		try {
-			// Parse configuration from environment and command line
-			ServerConfig config = parseConfiguration( args );
+			// Parse configuration from environment, JSON file, and command line
+			MiniServerConfig config = MiniServerConfig.fromArgs( args );
 
 			// Normalize and validate the webroot path
 			Path absWebRoot = normalizeWebroot( config.webRoot );
+
+			// Convention: check for .boxlang.json in the webroot directory, mirroring
+			// how .env is auto-discovered. CWD was already checked in fromArgs(); this
+			// catches the case where --webroot points somewhere other than CWD.
+			loadBoxLangConfig( absWebRoot, config );
 
 			// Load up any .env files if they exist
 			loadEnvFiles( absWebRoot, config );
@@ -189,12 +170,28 @@ public class MiniServer {
 	}
 
 	/**
+	 * Loads BoxLang configuration from a .boxlang.json file in the web root if configPath is not already set.
+	 *
+	 * @param absWebRoot The absolute path to the web root directory
+	 * @param config     The server configuration to update with the detected config path
+	 */
+	private static void loadBoxLangConfig( Path absWebRoot, MiniServerConfig config ) {
+		if ( config.configPath == null ) {
+			Path webrootBoxLangConfig = absWebRoot.resolve( ".boxlang.json" );
+			if ( java.nio.file.Files.exists( webrootBoxLangConfig ) ) {
+				config.configPath = webrootBoxLangConfig.toAbsolutePath().toString();
+				System.out.println( "+ Detected BoxLang config via convention (webroot): " + config.configPath );
+			}
+		}
+	}
+
+	/**
 	 * Loads environment variables from a .env file in the web root directory or from a custom env file.
 	 *
 	 * @param absWebRoot The absolute path to the web root directory
 	 * @param config     The server configuration (may contain custom envFile path)
 	 */
-	private static void loadEnvFiles( Path absWebRoot, ServerConfig config ) {
+	private static void loadEnvFiles( Path absWebRoot, MiniServerConfig config ) {
 		Path envFile = null;
 
 		// Check if a custom env file is specified in the configuration
@@ -230,199 +227,7 @@ public class MiniServer {
 		}
 	}
 
-	/**
-	 * Parses configuration from environment variables and command line arguments.
-	 *
-	 * @param args Command line arguments
-	 *
-	 * @return ServerConfig with parsed values
-	 */
-	private static ServerConfig parseConfiguration( String[] args ) {
-		Map<String, String>	envVars	= System.getenv();
-		ServerConfig		config	= new ServerConfig();
-
-		// Setup defaults from environment variables
-		try {
-			config.port = Integer.parseInt( envVars.getOrDefault( "BOXLANG_PORT", String.valueOf( DEFAULT_PORT ) ) );
-		} catch ( NumberFormatException e ) {
-			throw new IllegalArgumentException( "Invalid BOXLANG_PORT environment variable: " + envVars.get( "BOXLANG_PORT" ) );
-		}
-
-		config.webRoot				= envVars.getOrDefault( "BOXLANG_WEBROOT", "" );
-		config.host					= envVars.getOrDefault( "BOXLANG_HOST", DEFAULT_HOST );
-		config.configPath			= envVars.getOrDefault( "BOXLANG_CONFIG", null );
-		config.serverHome			= envVars.getOrDefault( "BOXLANG_HOME", null );
-		config.rewrites				= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_REWRITES", "false" ) );
-		config.rewriteFileName		= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", DEFAULT_REWRITE_FILE );
-		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
-		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
-
-		// Load JSON configuration if available
-		// Check if first argument is a path to a JSON file
-		boolean	firstArgIsJsonFile	= args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
-
-		String	jsonConfigPath		= null;
-		if ( firstArgIsJsonFile ) {
-			Path jsonPath = Paths.get( args[ 0 ] ).toAbsolutePath();
-			if ( Files.exists( jsonPath ) ) {
-				jsonConfigPath = args[ 0 ];
-			} else {
-				throw new IllegalArgumentException( "JSON configuration file not found: " + args[ 0 ] );
-			}
-		} else {
-			// Look for miniserver.json in current directory
-			Path defaultJsonPath = Paths.get( System.getProperty( "user.dir" ), "miniserver.json" );
-			if ( Files.exists( defaultJsonPath ) ) {
-				jsonConfigPath = defaultJsonPath.toString();
-			}
-		}
-
-		if ( jsonConfigPath != null ) {
-			loadJsonConfiguration( config, jsonConfigPath );
-		}
-
-		// Parse command line arguments (these override JSON and environment)
-		// If first arg was a JSON file path, skip it
-		int startIndex = firstArgIsJsonFile ? 1 : 0;
-
-		for ( int i = startIndex; i < args.length; i++ ) {
-			String arg = args[ i ];
-
-			if ( arg.equalsIgnoreCase( "--help" ) || arg.equalsIgnoreCase( "-h" ) ) {
-				printHelp();
-				System.exit( 0 );
-			} else if ( arg.equalsIgnoreCase( "--version" ) || arg.equalsIgnoreCase( "-v" ) ) {
-				printVersion();
-				System.exit( 0 );
-			} else if ( arg.equalsIgnoreCase( "--port" ) || arg.equalsIgnoreCase( "-p" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Port argument requires a value" );
-				}
-				try {
-					config.port = Integer.parseInt( args[ ++i ] );
-				} catch ( NumberFormatException e ) {
-					throw new IllegalArgumentException( "Invalid port number: " + args[ i ] );
-				}
-			} else if ( arg.equalsIgnoreCase( "--webroot" ) || arg.equalsIgnoreCase( "-w" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Webroot argument requires a value" );
-				}
-				config.webRoot = args[ ++i ];
-			} else if ( arg.equalsIgnoreCase( "--debug" ) || arg.equalsIgnoreCase( "-d" ) ) {
-				config.debug = true;
-			} else if ( arg.equalsIgnoreCase( "--host" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Host argument requires a value" );
-				}
-				config.host = args[ ++i ];
-			} else if ( arg.equalsIgnoreCase( "--configPath" ) || arg.equalsIgnoreCase( "-c" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Config path argument requires a value" );
-				}
-				config.configPath = args[ ++i ];
-			} else if ( arg.equalsIgnoreCase( "--serverHome" ) || arg.equalsIgnoreCase( "-s" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Server home argument requires a value" );
-				}
-				config.serverHome = args[ ++i ];
-			} else if ( arg.equalsIgnoreCase( "--rewrites" ) || arg.equalsIgnoreCase( "-r" ) ) {
-				config.rewrites = true;
-				// Check if the next arg exists and is not a flag and is a file name
-				if ( i + 1 < args.length && !args[ i + 1 ].startsWith( "-" ) ) {
-					config.rewriteFileName = args[ ++i ];
-				}
-			} else if ( arg.equalsIgnoreCase( "--health-check" ) ) {
-				config.healthCheck = true;
-			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
-				config.healthCheckSecure = true;
-			} else if ( arg.equalsIgnoreCase( "--warmup-url" ) ) {
-				if ( i + 1 >= args.length ) {
-					throw new IllegalArgumentException( "Warmup URL argument requires a value" );
-				}
-				config.warmupUrls.add( args[ ++i ] );
-			} else if ( arg.startsWith( "-" ) ) {
-				throw new IllegalArgumentException( "Unknown argument: " + arg );
-			}
-		}
-
-		// Validate configuration
-		config.validate();
-		return config;
-	}
-
-	/**
-	 * Loads configuration from a JSON file and applies it to the config object.
-	 *
-	 * @param config   The ServerConfig object to populate
-	 * @param jsonPath The path to the JSON configuration file
-	 */
-	private static void loadJsonConfiguration( ServerConfig config, String jsonPath ) {
-		try {
-			Path jsonFile = Paths.get( jsonPath ).toAbsolutePath();
-			if ( !Files.exists( jsonFile ) ) {
-				throw new IllegalArgumentException( "JSON configuration file not found: " + jsonPath );
-			}
-
-			String				jsonContent	= Files.readString( jsonFile );
-			Map<String, Object>	jsonConfig	= JSON.std.mapFrom( jsonContent );
-
-			System.out.println( "+ Loading configuration from: " + jsonFile );
-
-			// Apply JSON configuration values to config object using BoxLang casters for type safety
-			if ( jsonConfig.containsKey( "port" ) && jsonConfig.get( "port" ) != null ) {
-				config.port = IntegerCaster.cast( jsonConfig.get( "port" ) );
-			}
-			if ( jsonConfig.containsKey( "webRoot" ) && jsonConfig.get( "webRoot" ) != null ) {
-				config.webRoot = StringCaster.cast( jsonConfig.get( "webRoot" ) );
-			}
-			if ( jsonConfig.containsKey( "debug" ) && jsonConfig.get( "debug" ) != null ) {
-				config.debug = BooleanCaster.cast( jsonConfig.get( "debug" ) );
-			}
-			if ( jsonConfig.containsKey( "host" ) && jsonConfig.get( "host" ) != null ) {
-				config.host = StringCaster.cast( jsonConfig.get( "host" ) );
-			}
-			if ( jsonConfig.containsKey( "configPath" ) && jsonConfig.get( "configPath" ) != null ) {
-				config.configPath = StringCaster.cast( jsonConfig.get( "configPath" ) );
-			}
-			if ( jsonConfig.containsKey( "serverHome" ) && jsonConfig.get( "serverHome" ) != null ) {
-				config.serverHome = StringCaster.cast( jsonConfig.get( "serverHome" ) );
-			}
-			if ( jsonConfig.containsKey( "rewrites" ) && jsonConfig.get( "rewrites" ) != null ) {
-				config.rewrites = BooleanCaster.cast( jsonConfig.get( "rewrites" ) );
-			}
-			if ( jsonConfig.containsKey( "rewriteFileName" ) && jsonConfig.get( "rewriteFileName" ) != null ) {
-				config.rewriteFileName = StringCaster.cast( jsonConfig.get( "rewriteFileName" ) );
-			}
-			if ( jsonConfig.containsKey( "healthCheck" ) && jsonConfig.get( "healthCheck" ) != null ) {
-				config.healthCheck = BooleanCaster.cast( jsonConfig.get( "healthCheck" ) );
-			}
-			if ( jsonConfig.containsKey( "healthCheckSecure" ) && jsonConfig.get( "healthCheckSecure" ) != null ) {
-				config.healthCheckSecure = BooleanCaster.cast( jsonConfig.get( "healthCheckSecure" ) );
-			}
-			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
-				config.envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );
-			}
-			// Handle warmupUrl (single string) or warmupUrls (array)
-			if ( jsonConfig.containsKey( "warmupUrl" ) && jsonConfig.get( "warmupUrl" ) != null ) {
-				config.warmupUrls.add( StringCaster.cast( jsonConfig.get( "warmupUrl" ) ) );
-			}
-			if ( jsonConfig.containsKey( "warmupUrls" ) && jsonConfig.get( "warmupUrls" ) != null ) {
-				Object warmupUrlsObj = jsonConfig.get( "warmupUrls" );
-				if ( warmupUrlsObj instanceof List ) {
-					@SuppressWarnings( "unchecked" )
-					List<Object> urlList = ( List<Object> ) warmupUrlsObj;
-					for ( Object url : urlList ) {
-						config.warmupUrls.add( StringCaster.cast( url ) );
-					}
-				}
-			}
-
-		} catch ( IOException e ) {
-			throw new IllegalArgumentException( "Failed to read JSON configuration file: " + jsonPath + " - " + e.getMessage(), e );
-		} catch ( Exception e ) {
-			throw new IllegalArgumentException( "Failed to parse JSON configuration file: " + jsonPath + " - " + e.getMessage(), e );
-		}
-	}
+	// parseConfiguration() and loadJsonConfiguration() have been moved to MiniServerConfig
 
 	/**
 	 * Starts the server with the given configuration.
@@ -430,7 +235,7 @@ public class MiniServer {
 	 * @param config     The server configuration
 	 * @param absWebRoot The absolute web root path
 	 */
-	private static void startServer( ServerConfig config, Path absWebRoot ) {
+	private static void startServer( MiniServerConfig config, Path absWebRoot ) {
 		var sTime = System.currentTimeMillis();
 
 		// Output server information
@@ -453,6 +258,7 @@ public class MiniServer {
 		        + versionInfo.getAsString( Key.of( "buildDate" ) )
 		        + ")" );
 		System.out.println( "  - Runtime Started in " + ( System.currentTimeMillis() - sTime ) + "ms" );
+		System.out.println( "  - Logs Directory: " + runtime.getLoggingService().getLogsDirectory() );
 
 		// Build the web server
 		Undertow BLServer = buildWebServer( absWebRoot, config );
@@ -576,7 +382,7 @@ public class MiniServer {
 	 *
 	 * @return The built Undertow server.
 	 */
-	private static Undertow buildWebServer( Path webRootPath, ServerConfig config ) {
+	private static Undertow buildWebServer( Path webRootPath, MiniServerConfig config ) {
 		Undertow.Builder builder = Undertow.builder();
 
 		// Setup the resource manager for the web root
@@ -584,6 +390,9 @@ public class MiniServer {
 
 		// Create the HTTP handler chain with encoding and welcome file handling
 		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
+
+		// Apply undertow/worker/socket options from config (defaults + any user overrides)
+		applyUndertowOptions( builder, config );
 
 		// Build and return the server
 		return builder
@@ -600,7 +409,7 @@ public class MiniServer {
 	 *
 	 * @return The configured HTTP handler chain
 	 */
-	private static HttpHandler createHandlerChain( Path webRootPath, ServerConfig config ) {
+	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config ) {
 		// Create the base handler (welcome file handling and routing)
 		HttpHandler	baseHandler		= new WelcomeFileHandler(
 		    Handlers.predicate(
@@ -654,7 +463,83 @@ public class MiniServer {
 	}
 
 	/**
-	 * Creates a handler that sets the current exchange in ThreadLocal for WebSocket integration.
+	 * Applies Undertow server options, XNIO worker options, and XNIO socket options
+	 * from the given configuration to the Undertow builder.
+	 *
+	 * Option names are resolved via reflection against {@link io.undertow.UndertowOptions}
+	 * (for {@code undertowOptions}) and {@link org.xnio.Options} (for {@code workerOptions}
+	 * and {@code socketOptions}). Unknown keys produce a warning but do not throw.
+	 *
+	 * @param builder The Undertow server builder
+	 * @param config  The server configuration containing option maps
+	 */
+	private static void applyUndertowOptions( Undertow.Builder builder, MiniServerConfig config ) {
+		// Server-level Undertow options
+		for ( Map.Entry<String, Object> entry : config.undertowOptions.entrySet() ) {
+			applyOption( entry.getKey(), entry.getValue(), UndertowOptions.class,
+			    ( opt, val ) -> builder.setServerOption( opt, val ) );
+		}
+		// XNIO worker options
+		for ( Map.Entry<String, Object> entry : config.workerOptions.entrySet() ) {
+			applyOption( entry.getKey(), entry.getValue(), Options.class,
+			    ( opt, val ) -> builder.setWorkerOption( opt, val ) );
+		}
+		// XNIO socket options
+		for ( Map.Entry<String, Object> entry : config.socketOptions.entrySet() ) {
+			applyOption( entry.getKey(), entry.getValue(), Options.class,
+			    ( opt, val ) -> builder.setSocketOption( opt, val ) );
+		}
+	}
+
+	/**
+	 * Resolves a single option by name from the given options class, coerces the raw value
+	 * to the option's declared type, and forwards it to the provided applier function.
+	 *
+	 * @param key          Option name — must match a {@code public static final Option<T>} field
+	 * @param rawValue     Raw value from JSON or the defaults map
+	 * @param optionsClass {@link io.undertow.UndertowOptions} or {@link org.xnio.Options}
+	 * @param applier      Callback that calls the appropriate builder setter
+	 */
+	@SuppressWarnings( "unchecked" )
+	private static void applyOption( String key, Object rawValue, Class<?> optionsClass,
+	    java.util.function.BiConsumer<Option<Object>, Object> applier ) {
+		try {
+			java.lang.reflect.Field	field	= optionsClass.getField( key );
+			Option<Object>			option	= ( Option<Object> ) field.get( null );
+
+			// Resolve T from Option<T> via the field's generic type parameter
+			Class<?>				type	= null;
+			java.lang.reflect.Type	gt		= field.getGenericType();
+			if ( gt instanceof java.lang.reflect.ParameterizedType ) {
+				java.lang.reflect.Type[] args = ( ( java.lang.reflect.ParameterizedType ) gt ).getActualTypeArguments();
+				if ( args.length > 0 && args[ 0 ] instanceof Class ) {
+					type = ( Class<?> ) args[ 0 ];
+				}
+			}
+
+			Object coerced;
+			if ( type == Long.class ) {
+				// JSON numbers may arrive as Integer if they fit — promote to Long
+				coerced = ( ( Number ) rawValue ).longValue();
+			} else if ( type == Integer.class ) {
+				coerced = IntegerCaster.cast( rawValue );
+			} else if ( type == Boolean.class ) {
+				coerced = BooleanCaster.cast( rawValue );
+			} else {
+				coerced = StringCaster.cast( rawValue );
+			}
+
+			applier.accept( option, coerced );
+			System.out.println( "  - Undertow/XNIO option applied: " + key + " = " + coerced );
+		} catch ( NoSuchFieldException e ) {
+			System.err.println( "Warning: Unknown Undertow/XNIO option '" + key + "' — skipping" );
+		} catch ( Exception e ) {
+			System.err.println( "Warning: Failed to apply Undertow/XNIO option '" + key + "': " + e.getMessage() );
+		}
+	}
+
+	/**
+	 * Creates an exchange setter handler that wraps the given final handler.
 	 *
 	 * @param finalHandler The final handler in the chain
 	 *
@@ -851,7 +736,7 @@ public class MiniServer {
 		System.out.println( "🔌 WEBSOCKET SUPPORT:" );
 		System.out.println( "  WebSocket endpoint available at: ws://host:port/ws" );
 		System.out.println();
-		System.out.println( "ℹ️ More Information:" );
+		System.out.println( "ℹ More Information:" );
 		System.out.println( "  📖 Documentation: https://boxlang.ortusbooks.com/" );
 		System.out.println( "  💬 Community: https://community.ortussolutions.com/c/boxlang/42" );
 		System.out.println( "  💾 GitHub: https://github.com/ortus-boxlang" );

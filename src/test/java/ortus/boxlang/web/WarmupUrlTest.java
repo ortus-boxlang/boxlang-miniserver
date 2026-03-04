@@ -24,6 +24,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import ortus.boxlang.web.config.MiniServerConfig;
+
 /**
  * Tests for warmup URL functionality in MiniServer
  */
@@ -32,7 +34,7 @@ public class WarmupUrlTest {
 	@Test
 	void testServerConfig_warmupUrls_defaultsToEmptyList() {
 		// Arrange & Act
-		MiniServer.ServerConfig config = new MiniServer.ServerConfig();
+		MiniServerConfig config = new MiniServerConfig();
 
 		// Assert
 		assertThat( config.warmupUrls ).isNotNull();
@@ -42,7 +44,7 @@ public class WarmupUrlTest {
 	@Test
 	void testServerConfig_warmupUrls_canAddMultipleUrls() {
 		// Arrange
-		MiniServer.ServerConfig config = new MiniServer.ServerConfig();
+		MiniServerConfig config = new MiniServerConfig();
 
 		// Act
 		config.warmupUrls.add( "/app/init" );
@@ -57,7 +59,7 @@ public class WarmupUrlTest {
 	@Test
 	void testServerConfig_warmupUrls_isModifiable() {
 		// Arrange
-		MiniServer.ServerConfig config = new MiniServer.ServerConfig();
+		MiniServerConfig config = new MiniServerConfig();
 
 		// Act
 		config.warmupUrls.add( "/test1" );
@@ -72,10 +74,10 @@ public class WarmupUrlTest {
 	@Test
 	void testServerConfig_warmupUrls_canBeReassigned() {
 		// Arrange
-		MiniServer.ServerConfig	config		= new MiniServer.ServerConfig();
+		MiniServerConfig	config		= new MiniServerConfig();
 
 		// Act
-		List<String>			customUrls	= new ArrayList<>();
+		List<String>		customUrls	= new ArrayList<>();
 		customUrls.add( "/custom1" );
 		customUrls.add( "/custom2" );
 		config.warmupUrls = customUrls;
