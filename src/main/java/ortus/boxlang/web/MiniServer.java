@@ -386,7 +386,7 @@ public class MiniServer {
 		Undertow.Builder builder = Undertow.builder();
 
 		// Setup the resource manager for the web root
-		resourceManager = new PathResourceManager( webRootPath );
+		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
 
 		// Create the HTTP handler chain with encoding and welcome file handling
 		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
