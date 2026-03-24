@@ -171,6 +171,9 @@ public class MiniServerConfig {
 	/** List of URLs to warm up after server starts. */
 	public List<String>			warmupUrls			= new ArrayList<>();
 
+	/** CDS mode: when true startServer() exits immediately after detection (used for AppCDS archive generation). Default: false */
+	public Boolean				cds					= false;
+
 	/**
 	 * Server-level Undertow options forwarded to {@code builder.setServerOption()}.
 	 * Keys must match constant names in {@link io.undertow.UndertowOptions}.
@@ -314,6 +317,8 @@ public class MiniServerConfig {
 					throw new IllegalArgumentException( "Warmup URL argument requires a value" );
 				}
 				config.warmupUrls.add( args[ ++i ] );
+			} else if ( arg.equalsIgnoreCase( "--cds" ) ) {
+				config.cds = true;
 			} else if ( arg.startsWith( "-" ) ) {
 				throw new IllegalArgumentException( "Unknown argument: " + arg );
 			}

@@ -46,15 +46,18 @@ repositories {
 
 dependencies {
 	// LOCAL DEVELOPMENT ONLY
-	// CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
-	if ( file( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
-		implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' )
-		implementation files( '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
-	} else {
-		// Downloaded Dependencies
+	// Downloaded Dependencies
 		implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
 		implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
-	}
+	// // CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
+	// if ( file( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
+	// 	implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' )
+	// 	implementation files( '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
+	// } else {
+	// 	// Downloaded Dependencies
+	// 	implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
+	// 	implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
+	// }
 
   // Runtime Dependencies
   implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.20.1'
@@ -121,6 +124,118 @@ shadowJar {
 	exclude "org/antlr/v4/gui/**"
 	exclude "org/antlr/v4/gui/**"
 	exclude "com/ibm/icu/**"
+}
+
+/**
+ * Customize BoxLang startup scripts to support .env file loading
+ */
+startShadowScripts {
+	doLast {
+		// Customize the Unix script
+		def unixScript = file( "${buildDir}/scriptsShadow/boxlang-miniserver" )
+		customizeUnixScript(unixScript)
+
+		// Customize the Windows script
+		def windowsScript = file( "${buildDir}/scriptsShadow/boxlang-miniserver.bat" )
+		customizeWindowsScript(windowsScript)
+
+		logger.info( "+ BoxLang Miniserver startup scripts customized with .env support" )
+	}
+}
+
+
+/**
+ * Add .env file loading support to Unix script with --envfile argument support.
+ * Also injects AppCDS -Xshare:on flag when boxlang.jsa is present alongside the JAR.
+ */
+ext.customizeUnixScript = { File scriptFile ->
+	def content = scriptFile.text
+
+	// AppCDS: auto-generate a class-data archive on first run into ~/.boxlang/cache/
+	// and activate it on subsequent runs.  No .jsa is shipped in the distribution —
+	// it is created once per BoxLang version on the user's machine.
+	def appCdsSnippet = '''
+######################################
+# AppCDS: auto-generate and cache a class-data archive for faster startup
+######################################
+BL_JAR=$(ls "$APP_HOME/lib"/boxlang-*.jar 2>/dev/null | head -1)
+if [ -n "$BL_JAR" ]; then
+    BL_VER=$(basename "$BL_JAR" .jar | sed 's/^boxlang-//')
+    BL_JSA_DIR="$HOME/.boxlang/cache"
+    BL_JSA="$BL_JSA_DIR/boxlang-miniserver-$BL_VER.jsa"
+    BL_JAVA="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+    BL_JAVA="${BL_JAVA:-java}"
+    if [ ! -f "$BL_JSA" ] && command -v "$BL_JAVA" > /dev/null 2>&1; then
+        mkdir -p "$BL_JSA_DIR"
+        BL_CLASSLIST="$BL_JSA_DIR/boxlang-miniserver-$BL_VER.classlist"
+        "$BL_JAVA" -XX:DumpLoadedClassList="$BL_CLASSLIST" -cp "$BL_JAR" ortus.boxlang.web.MiniServer --cds > /dev/null 2>&1
+        "$BL_JAVA" -Xshare:dump -XX:SharedClassListFile="$BL_CLASSLIST" -XX:SharedArchiveFile="$BL_JSA.tmp" -cp "$BL_JAR" ortus.boxlang.web.MiniServer --cds > /dev/null 2>&1 && mv "$BL_JSA.tmp" "$BL_JSA"
+        rm -f "$BL_CLASSLIST" "$BL_JSA.tmp"
+    fi
+    if [ -f "$BL_JSA" ]; then
+        JAVA_OPTS="$JAVA_OPTS -Xshare:auto -XX:SharedArchiveFile=$BL_JSA"
+    fi
+fi
+######################################
+# End AppCDS
+######################################
+'''
+
+	// Insert env-loader and AppCDS together before the JVM detection line.
+	content = content.replace(
+		'# Determine the Java command to use to start the JVM.',
+		appCdsSnippet + '# Determine the Java command to use to start the JVM.'
+	)
+
+	scriptFile.text = content
+	scriptFile.setExecutable( true, false )
+}
+
+/**
+ * Add .env file loading support to Windows script with --envfile argument support.
+ * Also injects AppCDS -Xshare:on flag when boxlang.jsa is present alongside the JAR.
+ */
+ext.customizeWindowsScript = { File scriptFile ->
+	def content = scriptFile.text
+
+	// Inject AppCDS JVM flags for Windows: auto-generate into %USERPROFILE%\.boxlang\cache on first run.
+	def appCdsSnippet = '@rem ######################################\r\n' +
+		'@rem AppCDS: auto-generate and cache a class-data archive for faster startup\r\n' +
+		'@rem ######################################\r\n' +
+		'set "BL_JSA_DIR=%USERPROFILE%\\.boxlang\\cache"\r\n' +
+		'for %%F in ("%APP_HOME%\\lib\\boxlang-*.jar") do set "BL_JAR=%%~fF" & set "BL_JARNAME=%%~nF"\r\n' +
+		'if defined BL_JAR (\r\n' +
+		'  set "BL_VER=!BL_JARNAME:boxlang-=!"\r\n' +
+		'  set "BL_JSA=!BL_JSA_DIR!\\boxlang-miniserver-!BL_VER!.jsa"\r\n' +
+		'  if defined JAVA_HOME (set "BL_JAVA=%JAVA_HOME%\\bin\\java.exe") else (set "BL_JAVA=java.exe")\r\n' +
+		'  if not exist "!BL_JSA!" (\r\n' +
+		'    if not exist "!BL_JSA_DIR!" mkdir "!BL_JSA_DIR!"\r\n' +
+		'    set "BL_CLASSLIST=!BL_JSA_DIR!\\boxlang-miniserver-!BL_VER!.classlist"\r\n' +
+    '    "!BL_JAVA!" -XX:DumpLoadedClassList="!BL_CLASSLIST!" -cp "%BL_JAR%" ortus.boxlang.web.MiniServer --cds >nul 2>&1\r\n' +
+		'    "!BL_JAVA!" -Xshare:dump -XX:SharedClassListFile="!BL_CLASSLIST!" -XX:SharedArchiveFile="!BL_JSA!" -cp "%BL_JAR%" ortus.boxlang.web.MiniServer --cds >nul 2>&1\r\n' +
+		'    del "!BL_CLASSLIST!" >nul 2>&1\r\n' +
+		'  )\r\n' +
+		'  if exist "!BL_JSA!" (\r\n' +
+		'    set "JAVA_OPTS=%JAVA_OPTS% -Xshare:auto -XX:SharedArchiveFile=!BL_JSA!"\r\n' +
+		'  )\r\n' +
+		')\r\n' +
+		'@rem ######################################\r\n' +
+		'@rem End AppCDS\r\n' +
+		'@rem ######################################\r\n\r\n'
+
+	// Insert both blocks together: AppCDS first, then env-loader, both before "Setup the command line"
+	content = content.replace(
+		'@rem Setup the command line',
+		appCdsSnippet + '@rem Setup the command line'
+	)
+
+	// Replace CMD_LINE_ARGS with filtered arguments after it's set
+	content = content.replaceFirst(
+		/(set CMD_LINE_ARGS=%\*)/,
+		'$1\r\nif defined CMD_LINE_ARGS_TEMP set CMD_LINE_ARGS=%CMD_LINE_ARGS_TEMP%'
+	)
+
+	scriptFile.text = content
 }
 
 /**

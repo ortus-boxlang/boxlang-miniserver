@@ -158,6 +158,11 @@ public class MiniServer {
 
 			// Start the server
 			startServer( config, absWebRoot );
+
+			// CDS mode: exit immediately so the JVM class-data archive generation completes cleanly.
+			if ( Boolean.TRUE.equals( config.cds ) ) {
+				System.exit( 0 );
+			}
 		} catch ( IllegalArgumentException e ) {
 			System.err.println( "IllegalArgumentException: " + e.getMessage() );
 			e.printStackTrace();
