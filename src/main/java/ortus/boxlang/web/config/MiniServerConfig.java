@@ -48,7 +48,7 @@ import ortus.boxlang.runtime.dynamic.casters.StringCaster;
  * - {@code socketOptions} → {@link org.xnio.Options} constants → {@code builder.setSocketOption()}
  *
  * Example miniserver.json:
- * 
+ *
  * <pre>
  * {
  *   "port": 8080,
