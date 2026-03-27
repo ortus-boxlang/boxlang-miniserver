@@ -46,18 +46,16 @@ repositories {
 
 dependencies {
 	// LOCAL DEVELOPMENT ONLY
-	// Downloaded Dependencies
+	// CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
+	if ( file( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
+		implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' )
+		//implementation files( '../boxlang/build/libs/boxlang-compiler-java-' + boxlangVersion + '.jar' )
+		implementation files( '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
+	} else {
+		// Downloaded Dependencies
 		implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
 		implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
-	// // CHOOSE THE RIGHT LOCATION FOR YOUR LOCAL DEPENDENCIES
-	// if ( file( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' ).exists() ) {
-	// 	implementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '.jar' )
-	// 	implementation files( '../boxlang-web-support/build/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
-	// } else {
-	// 	// Downloaded Dependencies
-	// 	implementation files( 'src/test/resources/libs/boxlang-web-support-' + boxlangVersion + '.jar' )
-	// 	implementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
-	// }
+	}
 
   // Runtime Dependencies
   implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.20.1'
