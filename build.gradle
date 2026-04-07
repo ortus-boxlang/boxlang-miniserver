@@ -527,7 +527,7 @@ javadoc {
 }
 task zipJavadocs( type: Zip ) {
 	dependsOn javadoc
-	group "documentation"
+	group = "documentation"
 	from javadoc.destinationDir
 	archiveFileName = "${project.name}-javadocs-${version}.zip"
 	destinationDirectory = file( "$buildDir/distributions" )
