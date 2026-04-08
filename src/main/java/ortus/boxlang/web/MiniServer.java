@@ -158,6 +158,11 @@ public class MiniServer {
 
 			// Start the server
 			startServer( config, absWebRoot );
+
+			// CDS mode: exit immediately so the JVM class-data archive generation completes cleanly.
+			if ( Boolean.TRUE.equals( config.cds ) ) {
+				System.exit( 0 );
+			}
 		} catch ( IllegalArgumentException e ) {
 			System.err.println( "IllegalArgumentException: " + e.getMessage() );
 			e.printStackTrace();
@@ -386,7 +391,7 @@ public class MiniServer {
 		Undertow.Builder builder = Undertow.builder();
 
 		// Setup the resource manager for the web root
-		resourceManager = new PathResourceManager( webRootPath );
+		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
 
 		// Create the HTTP handler chain with encoding and welcome file handling
 		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
