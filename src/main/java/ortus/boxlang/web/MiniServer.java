@@ -99,11 +99,6 @@ public class MiniServer {
 	);
 
 	/**
-	 * BoxLang file pattern for request routing
-	 */
-	private static final String								BOXLANG_FILE_PATTERN	= "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )";
-
-	/**
 	 * Flag to indicate if the server is shutting down.
 	 */
 	public static boolean									shuttingDown			= false;
@@ -416,30 +411,30 @@ public class MiniServer {
 	 */
 	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config ) {
 		// Create the base handler (welcome file handling and routing)
-		HttpHandler	baseHandler		= new WelcomeFileHandler(
+		HttpHandler baseHandler = new WelcomeFileHandler(
 		    Handlers.predicate(
 		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
-		        Predicates.parse( BOXLANG_FILE_PATTERN ),
+		        Predicates.parse( config.passPredicate ),
 		        new BLHandler( webRootPath.toString() ),
-		        new ResourceHandler( resourceManager )
-		            .setDirectoryListingEnabled( true )
+		        new SecurityHandler(
+		            new ResourceHandler( resourceManager )
+		                .setDirectoryListingEnabled( true )
+		        )
 		    ),
 		    resourceManager,
 		    DEFAULT_WELCOME_FILES
 		);
 
-		// Add security filter to block access to hidden files (starting with .)
-		HttpHandler	secureHandler	= new SecurityHandler( baseHandler );
-		System.out.println( "+ Security protection enabled - blocking access to hidden files (starting with .)" );
+		System.out.println( "+ Security protection enabled - blocking hidden or sensitive files" );
 
 		// Conditionally add health check handler
 		HttpHandler nextHandler;
 		if ( config.healthCheck ) {
-			nextHandler = new HealthCheckHandler( secureHandler, config.healthCheckSecure );
+			nextHandler = new HealthCheckHandler( baseHandler, config.healthCheckSecure );
 			String securityNote = config.healthCheckSecure ? " (detailed info restricted to localhost)" : "";
 			System.out.println( "+ Health check endpoints available at /health, /health/ready, /health/live" + securityNote );
 		} else {
-			nextHandler = secureHandler;
+			nextHandler = baseHandler;
 		}
 
 		// Setup the HTTP handler with encoding and welcome file handling
@@ -673,6 +668,7 @@ public class MiniServer {
 		System.out.println( "    \"healthCheck\": true," );
 		System.out.println( "    \"healthCheckSecure\": false," );
 		System.out.println( "    \"envFile\": \".env.local\"," );
+		System.out.println( "    \"passPredicate\": \"regex( '^(/.+?\\\\.cfml|/.+?\\\\.cf[cms]|.+?\\\\.bx[ms]{0,1})(/.*)?$' )\"," );
 		System.out.println( "    \"warmupUrl\": \"/index.bxm\"," );
 		System.out.println( "    \"warmupUrls\": [\"/app/init\", \"http://localhost:8080/health\"]" );
 		System.out.println( "  }" );
@@ -690,6 +686,7 @@ public class MiniServer {
 		System.out.println( "      --health-check      ❤️  Enable health check endpoints (/health, /health/ready, /health/live)" );
 		System.out.println( "      --health-check-secure 🔒 Restrict detailed health info to localhost only" );
 		System.out.println( "      --warmup-url <URL>  🔥 URL to call after server starts (can be repeated for multiple URLs)" );
+		System.out.println( "      --pass-predicate <EXPR> 🎯 Undertow predicate for BoxLang request routing (overrides default file-extension matching)" );
 		System.out.println();
 		System.out.println( "🌍 ENVIRONMENT VARIABLES:" );
 		System.out.println( "  BOXLANG_CONFIG          📁 Path to BoxLang configuration file" );
@@ -702,6 +699,7 @@ public class MiniServer {
 		System.out.println( "  BOXLANG_WEBROOT         📁 Path to the webroot directory" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK    ❤️  Enable health check endpoints (true/false)" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK_SECURE 🔒 Restrict detailed health info to localhost only (true/false)" );
+		System.out.println( "  BOXLANG_PASS_PREDICATE  🎯 Undertow predicate for BoxLang request routing" );
 		System.out.println( "  JAVA_OPTS               ⚙️  Java Virtual Machine options and system properties" );
 		System.out.println();
 		System.out.println( "💡 EXAMPLES:" );

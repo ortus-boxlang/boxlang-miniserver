@@ -80,6 +80,9 @@ public class MiniServerConfig {
 	/** Default rewrite target file when URL rewrites are enabled */
 	public static final String				DEFAULT_REWRITE_FILE	= "index.bxm";
 
+	/** Default BoxLang file pattern for request routing */
+	public static final String				DEFAULT_PASS_PREDICATE	= "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )";
+
 	// -------------------------------------------------------------------------
 	// Default Undertow / XNIO Option Maps
 	//
@@ -168,6 +171,9 @@ public class MiniServerConfig {
 	/** Path to a .env file to load. Null means auto-detect from webroot. */
 	public String				envFile				= null;
 
+	/** Undertow predicate expression that determines which requests are routed to BoxLang. Default: {@value #DEFAULT_PASS_PREDICATE} */
+	public String				passPredicate		= DEFAULT_PASS_PREDICATE;
+
 	/** List of URLs to warm up after server starts. */
 	public List<String>			warmupUrls			= new ArrayList<>();
 
@@ -235,6 +241,7 @@ public class MiniServerConfig {
 		config.rewriteFileName		= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", DEFAULT_REWRITE_FILE );
 		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
 		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
+		config.passPredicate		= envVars.getOrDefault( "BOXLANG_PASS_PREDICATE", DEFAULT_PASS_PREDICATE );
 
 		// 2. JSON configuration file
 		boolean	firstArgIsJsonFile	= args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
@@ -312,6 +319,11 @@ public class MiniServerConfig {
 				config.healthCheck = true;
 			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
 				config.healthCheckSecure = true;
+			} else if ( arg.equalsIgnoreCase( "--pass-predicate" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Pass predicate argument requires a value" );
+				}
+				config.passPredicate = args[ ++i ];
 			} else if ( arg.equalsIgnoreCase( "--warmup-url" ) ) {
 				if ( i + 1 >= args.length ) {
 					throw new IllegalArgumentException( "Warmup URL argument requires a value" );
@@ -399,6 +411,9 @@ public class MiniServerConfig {
 			}
 			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
 				envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );
+			}
+			if ( jsonConfig.containsKey( "passPredicate" ) && jsonConfig.get( "passPredicate" ) != null ) {
+				passPredicate = StringCaster.cast( jsonConfig.get( "passPredicate" ) );
 			}
 
 			// Handle warmupUrl (single string shorthand) or warmupUrls (array)

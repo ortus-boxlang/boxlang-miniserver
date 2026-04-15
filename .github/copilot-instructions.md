@@ -16,10 +16,9 @@ BoxLang MiniServer is a lightweight, high-performance web server for the BoxLang
   2. `FrameworkRewritesBuilder` - Optional URL rewrites to specified file (e.g., `index.bxm`)
   3. `EncodingHandler` - Gzip compression for responses >1500 bytes
   4. `HealthCheckHandler` - Optional health endpoints at `/health`, `/health/ready`, `/health/live`
-  5. `SecurityHandler` - Blocks access to hidden files (starting with `.`)
-  6. `WelcomeFileHandler` - Routes to welcome files (index.bxm, index.cfm, etc.)
-  7. `BLHandler` - Executes BoxLang files (*.bx[ms], *.cf[cms])
-  8. `ResourceHandler` - Serves static files
+  5. `WelcomeFileHandler` - Routes to welcome files (index.bxm, index.cfm, etc.)
+  6. `BLHandler` - Executes BoxLang files (*.bx[ms], *.cf[cms])
+  7. `SecurityHandler` → `ResourceHandler` - Security filtering wraps static file serving
 
 ### Key Patterns
 
@@ -151,16 +150,15 @@ Modifies `gradle.properties` for both `version` and `boxlangVersion`.
 
 ### Security Handler Implementation
 
-The `SecurityHandler` provides baseline security by blocking access to sensitive files:
+The `SecurityHandler` wraps the `ResourceHandler` to provide security filtering for static file requests. It blocks the following:
 
-- **Hidden Files**: Blocks any request to files/directories starting with `.` (e.g., `.env`, `.git`)
-- **Returns**: HTTP 404 for blocked requests to avoid revealing file existence
-- **Pattern**: Regex check on request path before passing to next handler
-- **Placement**: Must be early in handler chain (before file serving)
-
-**Example Protected Files**:
-- `.env`, `.git/`, `.svn/`, `.DS_Store`
-- Configuration files: `.boxlang.json`, `.editorconfig`
+- **Hidden Files**: Blocks any path segment starting with `.` (e.g., `.env`, `.git/config`), with an exception for `/.well-known/` paths (RFC 5785, used by ACME/Let's Encrypt)
+- **WEB-INF**: Blocks access to `/WEB-INF/` directories (case-insensitive)
+- **Config Files**: Blocks common config files that should never be public: `box.json`, `server.json`, `web.config`, `urlrewrite.xml`, `package.json`, `package-lock.json`, `Gulpfile.js` (case-insensitive)
+- **Source Files**: Blocks BoxLang/CFML source extensions (`.cfm`, `.cfc`, `.cfs`, `.cfml`, `.bx`, `.bxm`, `.bxs`) from being served as static content in case the pass predicate fails to route them to BLHandler
+- **Dangerous HTTP Methods**: Blocks `TRACE` and `TRACK` methods to prevent XSS data leakage (Cross-Site Tracing)
+- **Returns**: HTTP 404 for all blocked requests to avoid revealing file existence
+- **Placement**: Wraps only the `ResourceHandler` (static files), not the full handler chain. BLHandler executes BoxLang/CFML files regardless of HTTP method.
 
 ### WebSocket Support
 

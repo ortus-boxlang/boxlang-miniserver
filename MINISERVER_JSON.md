@@ -45,6 +45,7 @@ All the following options are supported in the JSON configuration file:
 | `healthCheck` | boolean | false | Enable health check endpoints |
 | `healthCheckSecure` | boolean | false | Restrict detailed health info to localhost only |
 | `envFile` | string | null | Path to custom environment file (relative or absolute) |
+| `passPredicate` | string | *(see below)* | Undertow predicate expression that determines which requests are routed to BoxLang |
 | `warmupUrl` | string | null | Single URL to call after server starts (for application warmup) |
 | `warmupUrls` | array | [] | Array of URLs to call after server starts (for application warmup) |
 | `undertowOptions` | object | *(see below)* | Undertow server-level options (`builder.setServerOption()`) |
@@ -107,6 +108,7 @@ All the following options are supported in the JSON configuration file:
   "healthCheck": true,
   "healthCheckSecure": false,
   "envFile": ".env.production",
+  "passPredicate": "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )",
   "warmupUrl": "/index.bxm"
 }
 ```
@@ -134,6 +136,34 @@ Multiple warmup URLs:
     "/health",
     "http://localhost:8080/cache/preload"
   ]
+}
+```
+
+## BoxLang Pass Predicate
+
+The `passPredicate` option controls which incoming requests are routed to the BoxLang runtime for execution versus being served as static files. The value is an [Undertow predicate expression](https://undertow.io/undertow-docs/undertow-docs-2.1.0/index.html#textual-representation-of-predicates).
+
+**Default value:**
+
+```
+regex( '^(/.+?\.cfml|/.+?\.cf[cms]|.+?\.bx[ms]{0,1})(/.*)?$' )
+```
+
+This matches requests for `.bxm`, `.bxs`, `.bx`, `.cfm`, `.cfc`, `.cfs`, and `.cfml` file extensions (with optional path-info after the file name).
+
+**Override via:**
+
+| Method | Example |
+|--------|---------|
+| `miniserver.json` | `"passPredicate": "regex( '.*' )"` |
+| CLI argument | `--pass-predicate "regex( '.*' )"` |
+| Environment variable | `BOXLANG_PASS_PREDICATE=regex( '.*' )` |
+
+**Example — route all requests through BoxLang:**
+
+```json
+{
+  "passPredicate": "regex( '.*' )"
 }
 ```
 
