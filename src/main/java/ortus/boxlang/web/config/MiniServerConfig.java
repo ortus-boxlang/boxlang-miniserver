@@ -177,6 +177,9 @@ public class MiniServerConfig {
 	/** List of URLs to warm up after server starts. */
 	public List<String>			warmupUrls			= new ArrayList<>();
 
+	/** URL-prefix to filesystem-path alias mappings, keyed by URL prefix (e.g. "/docs"). */
+	public Map<String, String>	aliases				= new LinkedHashMap<>();
+
 	/** CDS mode: when true startServer() exits immediately after detection (used for AppCDS archive generation). Default: false */
 	public Boolean				cds					= false;
 
@@ -428,6 +431,36 @@ public class MiniServerConfig {
 					for ( Object url : urlList ) {
 						warmupUrls.add( StringCaster.cast( url ) );
 					}
+				}
+			}
+
+			// aliases: supports struct {"from": "to"} and array [{"from":"/x","to":"/y"}] formats
+			if ( jsonConfig.containsKey( "aliases" ) && jsonConfig.get( "aliases" ) != null ) {
+				Object aliasesRaw = jsonConfig.get( "aliases" );
+				if ( aliasesRaw instanceof Map ) {
+					@SuppressWarnings( "unchecked" )
+					Map<String, Object> aliasMap = ( Map<String, Object> ) aliasesRaw;
+					for ( Map.Entry<String, Object> entry : aliasMap.entrySet() ) {
+						if ( entry.getKey() != null && entry.getValue() != null ) {
+							aliases.put( entry.getKey(), StringCaster.cast( entry.getValue() ) );
+						}
+					}
+				} else if ( aliasesRaw instanceof List ) {
+					@SuppressWarnings( "unchecked" )
+					List<Object> aliasList = ( List<Object> ) aliasesRaw;
+					for ( Object item : aliasList ) {
+						if ( item instanceof Map ) {
+							@SuppressWarnings( "unchecked" )
+							Map<String, Object> aliasEntry = ( Map<String, Object> ) item;
+							Object from = aliasEntry.get( "from" );
+							Object to   = aliasEntry.get( "to" );
+							if ( from != null && to != null ) {
+								aliases.put( StringCaster.cast( from ), StringCaster.cast( to ) );
+							}
+						}
+					}
+				} else {
+					System.err.println( "Warning: 'aliases' in miniserver.json is not an object or array — skipping" );
 				}
 			}
 

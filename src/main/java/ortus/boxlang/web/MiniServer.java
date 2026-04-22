@@ -23,9 +23,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -61,6 +63,7 @@ import ortus.boxlang.web.handlers.HealthCheckHandler;
 import ortus.boxlang.web.handlers.SecurityHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
+import ortus.boxlang.web.resource.AliasResourceManager;
 
 /**
  * The BoxLang MiniServer is a simple web server that serves BoxLang files and static files.
@@ -388,6 +391,28 @@ public class MiniServer {
 		// Setup the resource manager for the web root
 		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
 
+		// Resolve and validate alias targets, then wrap resource manager if any are valid
+		if ( !config.aliases.isEmpty() ) {
+			Map<String, Path> resolvedAliases = new LinkedHashMap<>();
+			for ( Map.Entry<String, String> entry : config.aliases.entrySet() ) {
+				String urlPrefix = entry.getKey();
+				Path   target    = Paths.get( entry.getValue() );
+				if ( !target.isAbsolute() ) {
+					target = webRootPath.resolve( entry.getValue() );
+				}
+				target = target.toAbsolutePath().normalize();
+				if ( !Files.exists( target ) || !Files.isDirectory( target ) ) {
+					System.err.println( "Warning: Alias target is not a valid directory: " + urlPrefix + " -> " + target );
+				} else {
+					resolvedAliases.put( urlPrefix, target );
+					System.out.println( "  + Alias: " + urlPrefix + " -> " + target );
+				}
+			}
+			if ( !resolvedAliases.isEmpty() ) {
+				resourceManager = new AliasResourceManager( resourceManager, resolvedAliases );
+			}
+		}
+
 		// Create the HTTP handler chain with encoding and welcome file handling
 		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
 
@@ -415,7 +440,7 @@ public class MiniServer {
 		    Handlers.predicate(
 		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
 		        Predicates.parse( config.passPredicate ),
-		        new BLHandler( webRootPath.toString() ),
+		        new BLHandler( webRootPath.toString(), config.aliases ),
 		        new SecurityHandler(
 		            new ResourceHandler( resourceManager )
 		                .setDirectoryListingEnabled( true )
