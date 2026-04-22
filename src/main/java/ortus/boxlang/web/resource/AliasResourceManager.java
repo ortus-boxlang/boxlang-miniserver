@@ -91,10 +91,7 @@ public class AliasResourceManager implements ResourceManager {
 				if ( aliasRelative.isEmpty() ) {
 					aliasRelative = "/";
 				}
-				Resource resource = alias.getResource( aliasRelative );
-				if ( resource != null ) {
-					return resource;
-				}
+				return alias.getResource( aliasRelative );
 			}
 		}
 		return primary.getResource( normalized );
