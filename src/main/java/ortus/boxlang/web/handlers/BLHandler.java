@@ -83,7 +83,7 @@ public class BLHandler implements HttpHandler {
 	/**
 	 * Create a new BLHandler with folder alias support.
 	 *
-	 * @param webRoot URL-prefix to absolute filesystem-path alias mappings
+	 * @param webRoot The primary web root path
 	 * @param aliases URL-prefix to absolute filesystem-path alias mappings
 	 */
 	public BLHandler( String webRoot, Map<String, String> aliases ) {
