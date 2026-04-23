@@ -119,7 +119,8 @@ public class AliasResourceManagerTest {
 		Resource r = arm.getResource( "/documentation/readme.html" );
 		assertThat( r ).isNotNull();
 		// The resource path should be under webrootDir, not docsAliasDir
-		assertThat( r.getFile().toPath().startsWith( webrootDir ) ).isTrue();
+		String resourceCanonical = r.getFile().getCanonicalPath();
+		assertThat( resourceCanonical ).startsWith( webrootDir.toFile().getCanonicalPath() );
 	}
 
 	// -------------------------------------------------------------------------
@@ -139,7 +140,7 @@ public class AliasResourceManagerTest {
 		// /api/v2/spec.json should resolve from deepAliasDir, not apiAliasDir
 		Resource r = arm.getResource( "/api/v2/spec.json" );
 		assertThat( r ).isNotNull();
-		assertThat( r.getFile().toPath().startsWith( deepAliasDir ) ).isTrue();
+		assertThat( r.getFile().getCanonicalPath() ).startsWith( deepAliasDir.toFile().getCanonicalPath() );
 
 		deepAliasDir.toFile().deleteOnExit();
 	}
