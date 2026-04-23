@@ -387,6 +387,7 @@ public class MiniServer {
 	 */
 	private static Undertow buildWebServer( Path webRootPath, MiniServerConfig config ) {
 		Undertow.Builder builder = Undertow.builder();
+		Map<String, String> validatedAliases = new LinkedHashMap<>();
 
 		// Setup the resource manager for the web root
 		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
@@ -405,6 +406,7 @@ public class MiniServer {
 					System.err.println( "Warning: Alias target is not a valid directory: " + urlPrefix + " -> " + target );
 				} else {
 					resolvedAliases.put( urlPrefix, target );
+					validatedAliases.put( urlPrefix, target.toString() );
 					System.out.println( "  + Alias: " + urlPrefix + " -> " + target );
 				}
 			}
@@ -414,7 +416,7 @@ public class MiniServer {
 		}
 
 		// Create the HTTP handler chain with encoding and welcome file handling
-		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
+		HttpHandler httpHandler = createHandlerChain( webRootPath, config, validatedAliases );
 
 		// Apply undertow/worker/socket options from config (defaults + any user overrides)
 		applyUndertowOptions( builder, config );
@@ -434,13 +436,13 @@ public class MiniServer {
 	 *
 	 * @return The configured HTTP handler chain
 	 */
-	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config ) {
+	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config, Map<String, String> validatedAliases ) {
 		// Create the base handler (welcome file handling and routing)
 		HttpHandler baseHandler = new WelcomeFileHandler(
 		    Handlers.predicate(
 		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
 		        Predicates.parse( config.passPredicate ),
-		        new BLHandler( webRootPath.toString(), config.aliases ),
+		        new BLHandler( webRootPath.toString(), validatedAliases ),
 		        new SecurityHandler(
 		            new ResourceHandler( resourceManager )
 		                .setDirectoryListingEnabled( true )
