@@ -402,6 +402,15 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 						        if ( file != null ) {
 							        fileUploads.add( new FileUpload( Key.of( key ), file, f.getFileName() ) );
 							        return file.toString();
+						        } else if ( f.getFileName() != null && !f.getFileName().isEmpty() ) {
+							        // File was selected but is 0 bytes - Undertow doesn't create a temp file for empty uploads
+							        try {
+								        Path emptyFile = java.nio.file.Files.createTempFile( "upload", f.getFileName() );
+								        fileUploads.add( new FileUpload( Key.of( key ), emptyFile, f.getFileName() ) );
+								        return emptyFile.toString();
+							        } catch ( IOException e ) {
+								        throw new BoxRuntimeException( "Could not create temp file for empty upload", e );
+							        }
 						        } else {
 							        // file upload form fields left empty, return empty string
 							        return "";
