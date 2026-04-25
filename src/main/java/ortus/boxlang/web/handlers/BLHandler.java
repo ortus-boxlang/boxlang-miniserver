@@ -45,21 +45,23 @@ public class BLHandler implements HttpHandler {
 	/**
 	 * The pattern to match the path info
 	 */
-	static final Pattern	pattern	= Pattern.compile( "^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$" );
+	static final Pattern pattern = Pattern.compile( "^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$" );
 
 	/** A resolved alias entry: URL prefix to filesystem path string. */
 	private static final class AliasEntry {
 
-		final String urlPrefix;
-		final String targetRoot;
+		final String	urlPrefix;
+		final String	targetRoot;
 
 		AliasEntry( String prefix, String target ) {
 			// Normalize: add leading slash, strip trailing slash
 			String p = prefix == null ? "/" : prefix.trim();
-			if ( !p.startsWith( "/" ) ) p = "/" + p;
-			if ( p.length() > 1 && p.endsWith( "/" ) ) p = p.substring( 0, p.length() - 1 );
-			this.urlPrefix  = p;
-			this.targetRoot = target;
+			if ( !p.startsWith( "/" ) )
+				p = "/" + p;
+			if ( p.length() > 1 && p.endsWith( "/" ) )
+				p = p.substring( 0, p.length() - 1 );
+			this.urlPrefix	= p;
+			this.targetRoot	= target;
 		}
 	}
 
@@ -151,7 +153,7 @@ public class BLHandler implements HttpHandler {
 	 * @param exchange The HttpServerExchange
 	 */
 	private void processPathInfo( HttpServerExchange exchange ) {
-		String				requestPath		= exchange.getRequestURI();
+		String				requestPath			= exchange.getRequestURI();
 		Map<String, Object>	predicateContext	= exchange.getAttachment( Predicate.PREDICATE_CONTEXT );
 		if ( !predicateContext.containsKey( "pathInfo" ) ) {
 			Matcher matcher = pattern.matcher( requestPath );

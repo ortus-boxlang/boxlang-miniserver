@@ -72,33 +72,33 @@ public class AliasResourceManagerTest {
 
 	@Test
 	void getResource_webrootFile_resolvedFromPrimary() throws IOException {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Resource r = arm.getResource( "/index.html" );
+		Resource				r	= arm.getResource( "/index.html" );
 		assertThat( r ).isNotNull();
 	}
 
 	@Test
 	void getResource_aliasedFile_resolvedFromAliasDir() throws IOException {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Resource r = arm.getResource( "/docs/guide.html" );
+		Resource				r	= arm.getResource( "/docs/guide.html" );
 		assertThat( r ).isNotNull();
 	}
 
 	@Test
 	void getResource_nonexistentFile_returnsNull() throws IOException {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Resource r = arm.getResource( "/docs/missing.html" );
+		Resource				r	= arm.getResource( "/docs/missing.html" );
 		assertThat( r ).isNull();
 	}
 
 	@Test
 	void getResource_noAlias_unknownPath_returnsNull() throws IOException {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Resource r = arm.getResource( "/other/file.html" );
+		Resource				r	= arm.getResource( "/other/file.html" );
 		assertThat( r ).isNull();
 	}
 
@@ -113,10 +113,10 @@ public class AliasResourceManagerTest {
 		Files.createDirectory( docDir );
 		Files.writeString( docDir.resolve( "readme.html" ), "<html>readme</html>" );
 
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
 		// /documentation/readme.html should come from the webroot, not the docs alias
-		Resource r = arm.getResource( "/documentation/readme.html" );
+		Resource				r	= arm.getResource( "/documentation/readme.html" );
 		assertThat( r ).isNotNull();
 		// The resource path should be under webrootDir, not docsAliasDir
 		String resourceCanonical = r.getFile().getCanonicalPath();
@@ -135,10 +135,10 @@ public class AliasResourceManagerTest {
 		Map<String, Path> aliases = new LinkedHashMap<>();
 		aliases.put( "/api", apiAliasDir );
 		aliases.put( "/api/v2", deepAliasDir );
-		AliasResourceManager arm = buildManager( aliases );
+		AliasResourceManager	arm	= buildManager( aliases );
 
 		// /api/v2/spec.json should resolve from deepAliasDir, not apiAliasDir
-		Resource r = arm.getResource( "/api/v2/spec.json" );
+		Resource				r	= arm.getResource( "/api/v2/spec.json" );
 		assertThat( r ).isNotNull();
 		assertThat( r.getFile().getCanonicalPath() ).startsWith( deepAliasDir.toFile().getCanonicalPath() );
 
@@ -151,25 +151,25 @@ public class AliasResourceManagerTest {
 
 	@Test
 	void resolveAliasRoot_matchingPath_returnsAliasRoot() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm		= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Path root = arm.resolveAliasRoot( "/docs/guide.html" );
+		Path					root	= arm.resolveAliasRoot( "/docs/guide.html" );
 		assertThat( root ).isEqualTo( docsAliasDir );
 	}
 
 	@Test
 	void resolveAliasRoot_nonMatchingPath_returnsNull() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm		= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Path root = arm.resolveAliasRoot( "/other/file.html" );
+		Path					root	= arm.resolveAliasRoot( "/other/file.html" );
 		assertThat( root ).isNull();
 	}
 
 	@Test
 	void resolveAliasRoot_boundaryCheck_doesNotMatchShorterAlias() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm		= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		Path root = arm.resolveAliasRoot( "/documentation/index.html" );
+		Path					root	= arm.resolveAliasRoot( "/documentation/index.html" );
 		assertThat( root ).isNull();
 	}
 
@@ -179,25 +179,25 @@ public class AliasResourceManagerTest {
 
 	@Test
 	void resolveAliasRelativePath_stripsPrefix() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		String rel = arm.resolveAliasRelativePath( "/docs/guide.html" );
+		String					rel	= arm.resolveAliasRelativePath( "/docs/guide.html" );
 		assertThat( rel ).isEqualTo( "/guide.html" );
 	}
 
 	@Test
 	void resolveAliasRelativePath_exactPrefix_returnsSlash() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		String rel = arm.resolveAliasRelativePath( "/docs" );
+		String					rel	= arm.resolveAliasRelativePath( "/docs" );
 		assertThat( rel ).isEqualTo( "/" );
 	}
 
 	@Test
 	void resolveAliasRelativePath_noMatch_returnsOriginal() {
-		AliasResourceManager arm = buildManager( Map.of( "/docs", docsAliasDir ) );
+		AliasResourceManager	arm	= buildManager( Map.of( "/docs", docsAliasDir ) );
 
-		String rel = arm.resolveAliasRelativePath( "/other/file.html" );
+		String					rel	= arm.resolveAliasRelativePath( "/other/file.html" );
 		assertThat( rel ).isEqualTo( "/other/file.html" );
 	}
 

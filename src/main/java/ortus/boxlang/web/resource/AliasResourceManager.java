@@ -41,8 +41,8 @@ public class AliasResourceManager implements ResourceManager {
 	/** Single alias: URL prefix maps to a filesystem directory. */
 	public static final class AliasEntry {
 
-		public final String				urlPrefix;
-		public final Path				targetRoot;
+		public final String					urlPrefix;
+		public final Path					targetRoot;
 		private final PathResourceManager	manager;
 
 		public AliasEntry( String urlPrefix, Path targetRoot ) {
@@ -64,8 +64,8 @@ public class AliasResourceManager implements ResourceManager {
 	private final List<AliasEntry>	aliases;
 
 	/**
-	 * @param primary   ResourceManager for the webroot (fallback)
-	 * @param aliasMap  URL prefix to absolute filesystem Path, in any order
+	 * @param primary  ResourceManager for the webroot (fallback)
+	 * @param aliasMap URL prefix to absolute filesystem Path, in any order
 	 */
 	public AliasResourceManager( ResourceManager primary, Map<String, Path> aliasMap ) {
 		this.primary = primary;

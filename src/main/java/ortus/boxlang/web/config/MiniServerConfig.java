@@ -451,9 +451,9 @@ public class MiniServerConfig {
 					for ( Object item : aliasList ) {
 						if ( item instanceof Map ) {
 							@SuppressWarnings( "unchecked" )
-							Map<String, Object> aliasEntry = ( Map<String, Object> ) item;
-							Object from = aliasEntry.get( "from" );
-							Object to   = aliasEntry.get( "to" );
+							Map<String, Object>	aliasEntry	= ( Map<String, Object> ) item;
+							Object				from		= aliasEntry.get( "from" );
+							Object				to			= aliasEntry.get( "to" );
 							if ( from != null && to != null ) {
 								aliases.put( StringCaster.cast( from ), StringCaster.cast( to ) );
 							}

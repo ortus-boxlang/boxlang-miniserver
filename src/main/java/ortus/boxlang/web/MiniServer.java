@@ -386,8 +386,8 @@ public class MiniServer {
 	 * @return The built Undertow server.
 	 */
 	private static Undertow buildWebServer( Path webRootPath, MiniServerConfig config ) {
-		Undertow.Builder builder = Undertow.builder();
-		Map<String, String> validatedAliases = new LinkedHashMap<>();
+		Undertow.Builder	builder				= Undertow.builder();
+		Map<String, String>	validatedAliases	= new LinkedHashMap<>();
 
 		// Setup the resource manager for the web root
 		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
@@ -396,8 +396,8 @@ public class MiniServer {
 		if ( !config.aliases.isEmpty() ) {
 			Map<String, Path> resolvedAliases = new LinkedHashMap<>();
 			for ( Map.Entry<String, String> entry : config.aliases.entrySet() ) {
-				String urlPrefix = entry.getKey();
-				Path   target    = Paths.get( entry.getValue() );
+				String	urlPrefix	= entry.getKey();
+				Path	target		= Paths.get( entry.getValue() );
 				if ( !target.isAbsolute() ) {
 					target = webRootPath.resolve( entry.getValue() );
 				}
