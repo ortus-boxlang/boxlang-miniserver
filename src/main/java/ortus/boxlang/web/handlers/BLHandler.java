@@ -18,6 +18,10 @@
 package ortus.boxlang.web.handlers;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,18 +47,58 @@ public class BLHandler implements HttpHandler {
 	 */
 	static final Pattern	pattern	= Pattern.compile( "^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$" );
 
+	/** A resolved alias entry: URL prefix to filesystem path string. */
+	private static final class AliasEntry {
+
+		final String urlPrefix;
+		final String targetRoot;
+
+		AliasEntry( String prefix, String target ) {
+			// Normalize: add leading slash, strip trailing slash
+			String p = prefix == null ? "/" : prefix.trim();
+			if ( !p.startsWith( "/" ) ) p = "/" + p;
+			if ( p.length() > 1 && p.endsWith( "/" ) ) p = p.substring( 0, p.length() - 1 );
+			this.urlPrefix  = p;
+			this.targetRoot = target;
+		}
+	}
+
 	/**
 	 * The web root
 	 */
-	private String			webRoot;
+	private final String			webRoot;
+
+	/** Alias entries sorted longest-prefix-first. Never null; may be empty. */
+	private final List<AliasEntry>	sortedAliases;
 
 	/**
-	 * Create a new BLHandler
+	 * Create a new BLHandler with no aliases.
 	 *
 	 * @param webRoot The web root
 	 */
 	public BLHandler( String webRoot ) {
+		this( webRoot, Collections.emptyMap() );
+	}
+
+	/**
+	 * Create a new BLHandler with folder alias support.
+	 *
+	 * @param webRoot The primary web root path
+	 * @param aliases URL-prefix to absolute filesystem-path alias mappings
+	 */
+	public BLHandler( String webRoot, Map<String, String> aliases ) {
 		this.webRoot = webRoot;
+		List<AliasEntry> list = new ArrayList<>();
+		if ( aliases != null ) {
+			for ( Map.Entry<String, String> e : aliases.entrySet() ) {
+				if ( e.getKey() != null && e.getValue() != null ) {
+					list.add( new AliasEntry( e.getKey(), e.getValue() ) );
+				}
+			}
+		}
+		// Longest prefix first so /docs/api beats /docs when both configured
+		list.sort( Comparator.comparingInt( ( AliasEntry e ) -> e.urlPrefix.length() ).reversed() );
+		this.sortedAliases = Collections.unmodifiableList( list );
 	}
 
 	/**
@@ -73,9 +117,27 @@ public class BLHandler implements HttpHandler {
 		exchange.startBlocking();
 
 		processPathInfo( exchange );
+
+		// Resolve the effective webRoot and adjust relativePath for alias matches
+		String effectiveWebRoot = this.webRoot;
+		if ( !sortedAliases.isEmpty() ) {
+			String relativePath = exchange.getRelativePath();
+			for ( AliasEntry alias : sortedAliases ) {
+				if ( matchesAliasPrefix( relativePath, alias.urlPrefix ) ) {
+					String aliasRelative = relativePath.substring( alias.urlPrefix.length() );
+					if ( aliasRelative.isEmpty() ) {
+						aliasRelative = "/";
+					}
+					exchange.setRelativePath( aliasRelative );
+					effectiveWebRoot = alias.targetRoot;
+					break;
+				}
+			}
+		}
+
 		BoxHTTPUndertowExchange httpExchange = new BoxHTTPUndertowExchange( exchange );
 		// In our custom pure Undertow server, we need to track our own FR transactions
-		WebRequestExecutor.execute( httpExchange, this.webRoot, true );
+		WebRequestExecutor.execute( httpExchange, effectiveWebRoot, true );
 
 		finalizeResponse( httpExchange );
 
@@ -89,7 +151,7 @@ public class BLHandler implements HttpHandler {
 	 * @param exchange The HttpServerExchange
 	 */
 	private void processPathInfo( HttpServerExchange exchange ) {
-		String				requestPath			= exchange.getRequestURI();
+		String				requestPath		= exchange.getRequestURI();
 		Map<String, Object>	predicateContext	= exchange.getAttachment( Predicate.PREDICATE_CONTEXT );
 		if ( !predicateContext.containsKey( "pathInfo" ) ) {
 			Matcher matcher = pattern.matcher( requestPath );
@@ -157,6 +219,23 @@ public class BLHandler implements HttpHandler {
 
 		// Resume writes to trigger the listener
 		channel.resumeWrites();
+	}
+
+	/**
+	 * True if {@code path} starts with {@code prefix} at a path-segment boundary.
+	 * Prevents "/documentation" from matching the alias "/docs".
+	 */
+	private static boolean matchesAliasPrefix( String path, String prefix ) {
+		if ( prefix == null || prefix.isEmpty() || prefix.equals( "/" ) ) {
+			return true;
+		}
+		if ( !path.startsWith( prefix ) ) {
+			return false;
+		}
+		if ( path.length() == prefix.length() ) {
+			return true;
+		}
+		return path.charAt( prefix.length() ) == '/';
 	}
 
 }
