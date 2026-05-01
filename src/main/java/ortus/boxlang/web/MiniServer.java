@@ -23,9 +23,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -61,6 +63,7 @@ import ortus.boxlang.web.handlers.HealthCheckHandler;
 import ortus.boxlang.web.handlers.SecurityHandler;
 import ortus.boxlang.web.handlers.WebsocketHandler;
 import ortus.boxlang.web.handlers.WelcomeFileHandler;
+import ortus.boxlang.web.resource.AliasResourceManager;
 
 /**
  * The BoxLang MiniServer is a simple web server that serves BoxLang files and static files.
@@ -97,11 +100,6 @@ public class MiniServer {
 	private static final List<String>						DEFAULT_WELCOME_FILES	= List.of(
 	    "index.bxm", "index.bxs", "index.cfm", "index.cfs", "index.htm", "index.html"
 	);
-
-	/**
-	 * BoxLang file pattern for request routing
-	 */
-	private static final String								BOXLANG_FILE_PATTERN	= "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )";
 
 	/**
 	 * Flag to indicate if the server is shutting down.
@@ -388,13 +386,37 @@ public class MiniServer {
 	 * @return The built Undertow server.
 	 */
 	private static Undertow buildWebServer( Path webRootPath, MiniServerConfig config ) {
-		Undertow.Builder builder = Undertow.builder();
+		Undertow.Builder	builder				= Undertow.builder();
+		Map<String, String>	validatedAliases	= new LinkedHashMap<>();
 
 		// Setup the resource manager for the web root
 		resourceManager = new PathResourceManager( webRootPath, 1024, true, true );
 
+		// Resolve and validate alias targets, then wrap resource manager if any are valid
+		if ( !config.aliases.isEmpty() ) {
+			Map<String, Path> resolvedAliases = new LinkedHashMap<>();
+			for ( Map.Entry<String, String> entry : config.aliases.entrySet() ) {
+				String	urlPrefix	= entry.getKey();
+				Path	target		= Paths.get( entry.getValue() );
+				if ( !target.isAbsolute() ) {
+					target = webRootPath.resolve( entry.getValue() );
+				}
+				target = target.toAbsolutePath().normalize();
+				if ( !Files.exists( target ) || !Files.isDirectory( target ) ) {
+					System.err.println( "Warning: Alias target is not a valid directory: " + urlPrefix + " -> " + target );
+				} else {
+					resolvedAliases.put( urlPrefix, target );
+					validatedAliases.put( urlPrefix, target.toString() );
+					System.out.println( "  + Alias: " + urlPrefix + " -> " + target );
+				}
+			}
+			if ( !resolvedAliases.isEmpty() ) {
+				resourceManager = new AliasResourceManager( resourceManager, resolvedAliases );
+			}
+		}
+
 		// Create the HTTP handler chain with encoding and welcome file handling
-		HttpHandler httpHandler = createHandlerChain( webRootPath, config );
+		HttpHandler httpHandler = createHandlerChain( webRootPath, config, validatedAliases );
 
 		// Apply undertow/worker/socket options from config (defaults + any user overrides)
 		applyUndertowOptions( builder, config );
@@ -414,32 +436,32 @@ public class MiniServer {
 	 *
 	 * @return The configured HTTP handler chain
 	 */
-	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config ) {
+	private static HttpHandler createHandlerChain( Path webRootPath, MiniServerConfig config, Map<String, String> validatedAliases ) {
 		// Create the base handler (welcome file handling and routing)
-		HttpHandler	baseHandler		= new WelcomeFileHandler(
+		HttpHandler baseHandler = new WelcomeFileHandler(
 		    Handlers.predicate(
 		        // If this predicate evaluates to true, we process via BoxLang, otherwise, we serve a static file
-		        Predicates.parse( BOXLANG_FILE_PATTERN ),
-		        new BLHandler( webRootPath.toString() ),
-		        new ResourceHandler( resourceManager )
-		            .setDirectoryListingEnabled( true )
+		        Predicates.parse( config.passPredicate ),
+		        new BLHandler( webRootPath.toString(), validatedAliases ),
+		        new SecurityHandler(
+		            new ResourceHandler( resourceManager )
+		                .setDirectoryListingEnabled( true )
+		        )
 		    ),
 		    resourceManager,
 		    DEFAULT_WELCOME_FILES
 		);
 
-		// Add security filter to block access to hidden files (starting with .)
-		HttpHandler	secureHandler	= new SecurityHandler( baseHandler );
-		System.out.println( "+ Security protection enabled - blocking access to hidden files (starting with .)" );
+		System.out.println( "+ Security protection enabled - blocking hidden or sensitive files" );
 
 		// Conditionally add health check handler
 		HttpHandler nextHandler;
 		if ( config.healthCheck ) {
-			nextHandler = new HealthCheckHandler( secureHandler, config.healthCheckSecure );
+			nextHandler = new HealthCheckHandler( baseHandler, config.healthCheckSecure );
 			String securityNote = config.healthCheckSecure ? " (detailed info restricted to localhost)" : "";
 			System.out.println( "+ Health check endpoints available at /health, /health/ready, /health/live" + securityNote );
 		} else {
-			nextHandler = secureHandler;
+			nextHandler = baseHandler;
 		}
 
 		// Setup the HTTP handler with encoding and welcome file handling
@@ -673,6 +695,7 @@ public class MiniServer {
 		System.out.println( "    \"healthCheck\": true," );
 		System.out.println( "    \"healthCheckSecure\": false," );
 		System.out.println( "    \"envFile\": \".env.local\"," );
+		System.out.println( "    \"passPredicate\": \"regex( '^(/.+?\\\\.cfml|/.+?\\\\.cf[cms]|.+?\\\\.bx[ms]{0,1})(/.*)?$' )\"," );
 		System.out.println( "    \"warmupUrl\": \"/index.bxm\"," );
 		System.out.println( "    \"warmupUrls\": [\"/app/init\", \"http://localhost:8080/health\"]" );
 		System.out.println( "  }" );
@@ -690,6 +713,7 @@ public class MiniServer {
 		System.out.println( "      --health-check      ❤️  Enable health check endpoints (/health, /health/ready, /health/live)" );
 		System.out.println( "      --health-check-secure 🔒 Restrict detailed health info to localhost only" );
 		System.out.println( "      --warmup-url <URL>  🔥 URL to call after server starts (can be repeated for multiple URLs)" );
+		System.out.println( "      --pass-predicate <EXPR> 🎯 Undertow predicate for BoxLang request routing (overrides default file-extension matching)" );
 		System.out.println();
 		System.out.println( "🌍 ENVIRONMENT VARIABLES:" );
 		System.out.println( "  BOXLANG_CONFIG          📁 Path to BoxLang configuration file" );
@@ -702,6 +726,7 @@ public class MiniServer {
 		System.out.println( "  BOXLANG_WEBROOT         📁 Path to the webroot directory" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK    ❤️  Enable health check endpoints (true/false)" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK_SECURE 🔒 Restrict detailed health info to localhost only (true/false)" );
+		System.out.println( "  BOXLANG_PASS_PREDICATE  🎯 Undertow predicate for BoxLang request routing" );
 		System.out.println( "  JAVA_OPTS               ⚙️  Java Virtual Machine options and system properties" );
 		System.out.println();
 		System.out.println( "💡 EXAMPLES:" );

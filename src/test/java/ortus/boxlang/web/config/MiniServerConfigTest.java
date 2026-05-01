@@ -318,6 +318,90 @@ public class MiniServerConfigTest {
 	}
 
 	// -------------------------------------------------------------------------
+	// aliases parsing tests
+	// -------------------------------------------------------------------------
+
+	@Test
+	void testNewInstance_aliases_defaultsToEmptyMap() {
+		assertThat( new MiniServerConfig().aliases ).isEmpty();
+	}
+
+	@Test
+	void testApplyJson_aliases_structFormat_parsed() throws IOException {
+		String				json	= "{ \"aliases\": { \"/docs\": \"/var/www/documentation\", \"/assets\": \"/srv/shared\" } }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.aliases ).containsKey( "/docs" );
+		assertThat( config.aliases.get( "/docs" ) ).isEqualTo( "/var/www/documentation" );
+		assertThat( config.aliases ).containsKey( "/assets" );
+		assertThat( config.aliases.get( "/assets" ) ).isEqualTo( "/srv/shared" );
+	}
+
+	@Test
+	void testApplyJson_aliases_arrayFormat_singleEntry_parsed() throws IOException {
+		String				json	= "{ \"aliases\": [ { \"from\": \"/docs\", \"to\": \"/var/www/documentation\" } ] }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.aliases ).containsKey( "/docs" );
+		assertThat( config.aliases.get( "/docs" ) ).isEqualTo( "/var/www/documentation" );
+	}
+
+	@Test
+	void testApplyJson_aliases_arrayFormat_multipleEntries_parsed() throws IOException {
+		String				json	= "{ \"aliases\": [ { \"from\": \"/docs\", \"to\": \"/var/www/docs\" },"
+		    + " { \"from\": \"/api\", \"to\": \"/srv/api\" } ] }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.aliases ).hasSize( 2 );
+		assertThat( config.aliases.get( "/docs" ) ).isEqualTo( "/var/www/docs" );
+		assertThat( config.aliases.get( "/api" ) ).isEqualTo( "/srv/api" );
+	}
+
+	@Test
+	void testApplyJson_aliases_invalidFormat_skipped() throws IOException {
+		String				json	= "{ \"aliases\": \"not-valid\" }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() ); // must not throw
+
+		assertThat( config.aliases ).isEmpty();
+	}
+
+	@Test
+	void testApplyJson_aliases_arrayFormat_missingFromOrTo_skipped() throws IOException {
+		String				json	= "{ \"aliases\": [ { \"from\": \"/docs\" }, { \"to\": \"/srv/x\" },"
+		    + " { \"from\": \"/valid\", \"to\": \"/srv/valid\" } ] }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.aliases ).hasSize( 1 );
+		assertThat( config.aliases.get( "/valid" ) ).isEqualTo( "/srv/valid" );
+	}
+
+	@Test
+	void testApplyJson_aliases_absentKey_leavesMapEmpty() throws IOException {
+		String				json	= "{ \"port\": 8080 }";
+		Path				tmp		= writeTempJson( json );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.aliases ).isEmpty();
+	}
+
+	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
 

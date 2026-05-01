@@ -44,6 +44,7 @@ Example `miniserver.json`:
   "healthCheck": true,
   "healthCheckSecure": false,
   "envFile": null,
+  "passPredicate": null,
   "undertowOptions": {
     "MAX_ENTITY_SIZE": 26214400,
     "MULTIPART_MAX_ENTITY_SIZE": 104857600
@@ -64,6 +65,7 @@ Example `miniserver.json`:
 - `healthCheck` (boolean) - Enable health check endpoints
 - `healthCheckSecure` (boolean) - Restrict detailed health info to localhost only
 - `envFile` (string) - Path to custom environment file
+- `passPredicate` (string) - Undertow predicate expression for BoxLang request routing (default: matches `.bxm`, `.bxs`, `.bx`, `.cfm`, `.cfc`, `.cfs`, `.cfml` extensions)
 - `warmupUrl` (string) - Single URL to call after server starts
 - `warmupUrls` (array) - Multiple URLs to call after server starts
 - `undertowOptions` (object) - Undertow server-level tuning (e.g. upload size limits). Defaults: `MAX_ENTITY_SIZE` = 25 MB, `MULTIPART_MAX_ENTITY_SIZE` = 100 MB

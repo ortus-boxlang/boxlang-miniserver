@@ -80,6 +80,9 @@ public class MiniServerConfig {
 	/** Default rewrite target file when URL rewrites are enabled */
 	public static final String				DEFAULT_REWRITE_FILE	= "index.bxm";
 
+	/** Default BoxLang file pattern for request routing */
+	public static final String				DEFAULT_PASS_PREDICATE	= "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )";
+
 	// -------------------------------------------------------------------------
 	// Default Undertow / XNIO Option Maps
 	//
@@ -168,8 +171,14 @@ public class MiniServerConfig {
 	/** Path to a .env file to load. Null means auto-detect from webroot. */
 	public String				envFile				= null;
 
+	/** Undertow predicate expression that determines which requests are routed to BoxLang. Default: {@value #DEFAULT_PASS_PREDICATE} */
+	public String				passPredicate		= DEFAULT_PASS_PREDICATE;
+
 	/** List of URLs to warm up after server starts. */
 	public List<String>			warmupUrls			= new ArrayList<>();
+
+	/** URL-prefix to filesystem-path alias mappings, keyed by URL prefix (e.g. "/docs"). */
+	public Map<String, String>	aliases				= new LinkedHashMap<>();
 
 	/** CDS mode: when true startServer() exits immediately after detection (used for AppCDS archive generation). Default: false */
 	public Boolean				cds					= false;
@@ -235,6 +244,7 @@ public class MiniServerConfig {
 		config.rewriteFileName		= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", DEFAULT_REWRITE_FILE );
 		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
 		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
+		config.passPredicate		= envVars.getOrDefault( "BOXLANG_PASS_PREDICATE", DEFAULT_PASS_PREDICATE );
 
 		// 2. JSON configuration file
 		boolean	firstArgIsJsonFile	= args.length > 0 && !args[ 0 ].startsWith( "-" ) && args[ 0 ].endsWith( ".json" );
@@ -312,6 +322,11 @@ public class MiniServerConfig {
 				config.healthCheck = true;
 			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
 				config.healthCheckSecure = true;
+			} else if ( arg.equalsIgnoreCase( "--pass-predicate" ) ) {
+				if ( i + 1 >= args.length ) {
+					throw new IllegalArgumentException( "Pass predicate argument requires a value" );
+				}
+				config.passPredicate = args[ ++i ];
 			} else if ( arg.equalsIgnoreCase( "--warmup-url" ) ) {
 				if ( i + 1 >= args.length ) {
 					throw new IllegalArgumentException( "Warmup URL argument requires a value" );
@@ -400,6 +415,9 @@ public class MiniServerConfig {
 			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
 				envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );
 			}
+			if ( jsonConfig.containsKey( "passPredicate" ) && jsonConfig.get( "passPredicate" ) != null ) {
+				passPredicate = StringCaster.cast( jsonConfig.get( "passPredicate" ) );
+			}
 
 			// Handle warmupUrl (single string shorthand) or warmupUrls (array)
 			if ( jsonConfig.containsKey( "warmupUrl" ) && jsonConfig.get( "warmupUrl" ) != null ) {
@@ -413,6 +431,36 @@ public class MiniServerConfig {
 					for ( Object url : urlList ) {
 						warmupUrls.add( StringCaster.cast( url ) );
 					}
+				}
+			}
+
+			// aliases: supports struct {"from": "to"} and array [{"from":"/x","to":"/y"}] formats
+			if ( jsonConfig.containsKey( "aliases" ) && jsonConfig.get( "aliases" ) != null ) {
+				Object aliasesRaw = jsonConfig.get( "aliases" );
+				if ( aliasesRaw instanceof Map ) {
+					@SuppressWarnings( "unchecked" )
+					Map<String, Object> aliasMap = ( Map<String, Object> ) aliasesRaw;
+					for ( Map.Entry<String, Object> entry : aliasMap.entrySet() ) {
+						if ( entry.getKey() != null && entry.getValue() != null ) {
+							aliases.put( entry.getKey(), StringCaster.cast( entry.getValue() ) );
+						}
+					}
+				} else if ( aliasesRaw instanceof List ) {
+					@SuppressWarnings( "unchecked" )
+					List<Object> aliasList = ( List<Object> ) aliasesRaw;
+					for ( Object item : aliasList ) {
+						if ( item instanceof Map ) {
+							@SuppressWarnings( "unchecked" )
+							Map<String, Object>	aliasEntry	= ( Map<String, Object> ) item;
+							Object				from		= aliasEntry.get( "from" );
+							Object				to			= aliasEntry.get( "to" );
+							if ( from != null && to != null ) {
+								aliases.put( StringCaster.cast( from ), StringCaster.cast( to ) );
+							}
+						}
+					}
+				} else {
+					System.err.println( "Warning: 'aliases' in miniserver.json is not an object or array — skipping" );
 				}
 			}
 
