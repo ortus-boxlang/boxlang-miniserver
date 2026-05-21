@@ -151,6 +151,7 @@ public class HealthCheckHandlerTest {
 	 * Creates a mocked {@link HttpServerExchange} for the given request path using the GET method.
 	 *
 	 * @param requestPath the request path to mock
+	 * 
 	 * @return a mocked exchange with GET method and default status code (200)
 	 */
 	private HttpServerExchange createExchange( String requestPath ) {
@@ -161,14 +162,15 @@ public class HealthCheckHandlerTest {
 	 * Creates a fully mocked {@link HttpServerExchange} with the specified request path and HTTP method.
 	 * The exchange is configured with:
 	 * <ul>
-	 *   <li>Mocked request path and method</li>
-	 *   <li>Empty response headers</li>
-	 *   <li>Mocked response sender</li>
-	 *   <li>Status code tracking (defaults to 200, captures changes via setStatusCode)</li>
+	 * <li>Mocked request path and method</li>
+	 * <li>Empty response headers</li>
+	 * <li>Mocked response sender</li>
+	 * <li>Status code tracking (defaults to 200, captures changes via setStatusCode)</li>
 	 * </ul>
 	 *
 	 * @param requestPath the request path to mock
-	 * @param method the HTTP method (GET, POST, etc.)
+	 * @param method      the HTTP method (GET, POST, etc.)
+	 * 
 	 * @return a mocked exchange ready for handler testing
 	 */
 	private HttpServerExchange createExchange( String requestPath, String method ) {
@@ -194,6 +196,7 @@ public class HealthCheckHandlerTest {
 	 *
 	 * @param requestPath the request path to mock
 	 * @param bodyCapture a StringBuilder to accumulate response body content
+	 * 
 	 * @return a mocked exchange with body-capturing sender
 	 */
 	private HttpServerExchange createCapturingExchange( String requestPath, StringBuilder bodyCapture ) {

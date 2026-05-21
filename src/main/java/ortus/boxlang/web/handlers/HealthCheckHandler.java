@@ -115,13 +115,13 @@ public class HealthCheckHandler implements HttpHandler {
 				return;
 			}
 
-			BoxRuntime	runtime		= BoxRuntime.getInstance();
-			IStruct		versionInfo	= runtime.getVersionInfo();
+			BoxRuntime		runtime		= BoxRuntime.getInstance();
+			IStruct			versionInfo	= runtime.getVersionInfo();
 
-			long		uptime		= System.currentTimeMillis() - startTime;
-			String		uptimeStr	= formatUptime( uptime );
+			long			uptime		= System.currentTimeMillis() - startTime;
+			String			uptimeStr	= formatUptime( uptime );
 
-			StringBuilder response = new StringBuilder();
+			StringBuilder	response	= new StringBuilder();
 			response.append( "{\n" );
 			response.append( "  \"status\": \"UP\",\n" );
 			response.append( "  \"timestamp\": \"" )
@@ -285,8 +285,8 @@ public class HealthCheckHandler implements HttpHandler {
 				appendLongField( json, "    ", "activeConnections", -1, true );
 				appendLongField( json, "    ", "openConnections", -1, false );
 			} else {
-				long activeConnections = wsHandler.getConnections().size();
-				long openConnections = wsHandler.getConnections().stream().filter( channel -> channel != null && channel.isOpen() ).count();
+				long	activeConnections	= wsHandler.getConnections().size();
+				long	openConnections		= wsHandler.getConnections().stream().filter( channel -> channel != null && channel.isOpen() ).count();
 				appendLongField( json, "    ", "activeConnections", activeConnections, true );
 				appendLongField( json, "    ", "openConnections", openConnections, false );
 			}
