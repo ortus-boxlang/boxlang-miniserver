@@ -18,3 +18,6 @@ src/test/resources/libs/
 
 # Ignore local miniserver.json configuration files (but not .example)
 miniserver.json
+
+# AI
+.agents/skills/**
