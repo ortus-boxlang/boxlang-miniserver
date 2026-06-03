@@ -58,8 +58,8 @@ dependencies {
 	}
 
   // Runtime Dependencies
-  implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.21.2'
-  implementation 'io.undertow:undertow-core:2.3.24.Final'
+  implementation 'com.fasterxml.jackson.jr:jackson-jr-objects:2.21.4'
+  implementation 'io.undertow:undertow-core:2.4.1.Final'
   implementation 'io.undertow:undertow-websockets-jsr:2.3.24.Final'
 
   // Testing Dependencies
