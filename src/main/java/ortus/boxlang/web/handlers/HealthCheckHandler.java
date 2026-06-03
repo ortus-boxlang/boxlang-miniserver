@@ -20,14 +20,22 @@ package ortus.boxlang.web.handlers;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
+import org.xnio.XnioWorker;
+import org.xnio.management.XnioWorkerMXBean;
+
+import io.undertow.Undertow;
+import io.undertow.server.ConnectorStatistics;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.MetricsHandler;
 import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.IStruct;
+import ortus.boxlang.web.MiniServer;
 
 /**
  * Health check handler that provides server status and basic metrics.
@@ -107,35 +115,42 @@ public class HealthCheckHandler implements HttpHandler {
 				return;
 			}
 
-			BoxRuntime	runtime		= BoxRuntime.getInstance();
-			IStruct		versionInfo	= runtime.getVersionInfo();
+			BoxRuntime		runtime		= BoxRuntime.getInstance();
+			IStruct			versionInfo	= runtime.getVersionInfo();
 
-			long		uptime		= System.currentTimeMillis() - startTime;
-			String		uptimeStr	= formatUptime( uptime );
+			long			uptime		= System.currentTimeMillis() - startTime;
+			String			uptimeStr	= formatUptime( uptime );
 
-			String		response	= String.format(
-			    "{\n" +
-			        "  \"status\": \"UP\",\n" +
-			        "  \"timestamp\": \"%s\",\n" +
-			        "  \"uptime\": \"%s\",\n" +
-			        "  \"uptimeMs\": %d,\n" +
-			        "  \"version\": \"%s\",\n" +
-			        "  \"buildDate\": \"%s\",\n" +
-			        "  \"javaVersion\": \"%s\",\n" +
-			        "  \"memoryUsed\": %d,\n" +
-			        "  \"memoryMax\": %d\n" +
-			        "}",
-			    DateTimeFormatter.ISO_INSTANT.format( Instant.now() ),
-			    uptimeStr,
-			    uptime,
-			    versionInfo.getAsString( Key.of( "version" ) ),
-			    versionInfo.getAsString( Key.of( "buildDate" ) ),
-			    System.getProperty( "java.version" ),
-			    getUsedMemory(),
-			    getMaxMemory()
-			);
+			StringBuilder	response	= new StringBuilder();
+			response.append( "{\n" );
+			response.append( "  \"status\": \"UP\",\n" );
+			response.append( "  \"timestamp\": \"" )
+			    .append( DateTimeFormatter.ISO_INSTANT.format( Instant.now() ) )
+			    .append( "\",\n" );
+			response.append( "  \"uptime\": \"" ).append( uptimeStr ).append( "\",\n" );
+			response.append( "  \"uptimeMs\": " ).append( uptime ).append( ",\n" );
+			response.append( "  \"version\": \"" )
+			    .append( versionInfo.getAsString( Key.of( "version" ) ) )
+			    .append( "\",\n" );
+			response.append( "  \"buildDate\": \"" )
+			    .append( versionInfo.getAsString( Key.of( "buildDate" ) ) )
+			    .append( "\",\n" );
+			response.append( "  \"javaVersion\": \"" )
+			    .append( System.getProperty( "java.version" ) )
+			    .append( "\",\n" );
+			response.append( "  \"memoryUsed\": " ).append( getUsedMemory() ).append( ",\n" );
+			response.append( "  \"memoryMax\": " ).append( getMaxMemory() ).append( ",\n" );
 
-			sendJsonResponse( exchange, StatusCodes.OK, response );
+			// Keep detailed runtime metrics in /health instead of exposing a separate endpoint.
+			response.append( "  \"activeRequests\": " ).append( MiniServer.getActiveRequests() ).append( ",\n" );
+			appendWorkerPoolMetrics( response );
+			appendListenerMetrics( response );
+			appendMetricsHandlerStats( response );
+			appendWebSocketMetrics( response );
+
+			response.append( "}\n" );
+
+			sendJsonResponse( exchange, StatusCodes.OK, response.toString() );
 
 		} catch ( Exception e ) {
 			String errorResponse = String.format(
@@ -175,6 +190,147 @@ public class HealthCheckHandler implements HttpHandler {
 	private void handleLivenessCheck( HttpServerExchange exchange ) {
 		// Simple liveness check - if we can respond, we're alive
 		sendJsonResponse( exchange, StatusCodes.OK, "{\"status\": \"ALIVE\"}" );
+	}
+
+	/**
+	 * Appends XnioWorker pool statistics to the JSON builder.
+	 */
+	private void appendWorkerPoolMetrics( StringBuilder json ) {
+		json.append( "  \"workerPool\": {\n" );
+		try {
+			XnioWorker			worker	= MiniServer.getWorker();
+			XnioWorkerMXBean	mxBean	= worker != null ? worker.getMXBean() : null;
+
+			appendIntField( json, "    ", "core", mxBean != null ? mxBean.getCoreWorkerPoolSize() : -1, true );
+			appendIntField( json, "    ", "max", mxBean != null ? mxBean.getMaxWorkerPoolSize() : -1, true );
+			appendIntField( json, "    ", "current", mxBean != null ? mxBean.getWorkerPoolSize() : -1, true );
+			appendIntField( json, "    ", "busy", mxBean != null ? mxBean.getBusyWorkerThreadCount() : -1, true );
+			appendIntField( json, "    ", "ioThreadCount", mxBean != null ? mxBean.getIoThreadCount() : -1, true );
+			appendIntField( json, "    ", "queueSize", mxBean != null ? mxBean.getWorkerQueueSize() : -1, false );
+		} catch ( Exception e ) {
+			// Worker MXBean not available
+		}
+		json.append( "  },\n" );
+	}
+
+	/**
+	 * Appends per-listener connection/request/error metrics to the JSON builder.
+	 */
+	private void appendListenerMetrics( StringBuilder json ) {
+		json.append( "  \"listeners\": [\n" );
+		try {
+			Undertow server = MiniServer.getServerInstance();
+			if ( server == null ) {
+				json.append( "  ],\n" );
+				return;
+			}
+			List<Undertow.ListenerInfo> listenerInfos = server.getListenerInfo();
+
+			for ( int i = 0; i < listenerInfos.size(); i++ ) {
+				Undertow.ListenerInfo	li		= listenerInfos.get( i );
+				ConnectorStatistics		stats	= li.getConnectorStatistics();
+
+				json.append( "    {\n" );
+				json.append( "      \"name\": \"" ).append( li.getProtcol() ).append( "\",\n" );
+				appendLongField( json, "      ", "requestCount", stats != null ? stats.getRequestCount() : -1, true );
+				appendLongField( json, "      ", "errorCount", stats != null ? stats.getErrorCount() : -1, true );
+				appendLongField( json, "      ", "bytesSent", stats != null ? stats.getBytesSent() : -1, true );
+				appendLongField( json, "      ", "bytesReceived", stats != null ? stats.getBytesReceived() : -1,
+				    true );
+				appendLongField( json, "      ", "activeConnections",
+				    stats != null ? stats.getActiveConnections() : -1, true );
+				appendLongField( json, "      ", "activeRequests",
+				    stats != null ? stats.getActiveRequests() : -1, false );
+				json.append( "    }" );
+				if ( i < listenerInfos.size() - 1 ) {
+					json.append( "," );
+				}
+				json.append( "\n" );
+			}
+		} catch ( Exception e ) {
+			// Listener metrics not available
+		}
+		json.append( "  ],\n" );
+	}
+
+	/**
+	 * Appends request-level timing/error metrics from the MetricsHandler to the JSON builder.
+	 */
+	private void appendMetricsHandlerStats( StringBuilder json ) {
+		json.append( "  \"requestMetrics\": {\n" );
+		try {
+			MetricsHandler				mh		= MiniServer.getMetricsHandler();
+			MetricsHandler.MetricResult	metrics	= mh != null ? mh.getMetrics() : null;
+
+			appendLongField( json, "    ", "totalRequests", metrics != null ? metrics.getTotalRequests() : -1, true );
+			appendLongField( json, "    ", "totalErrors", metrics != null ? metrics.getTotalErrors() : -1, true );
+			appendLongField( json, "    ", "totalRequestTime", metrics != null ? metrics.getTotalRequestTime() : -1,
+			    true );
+			appendLongField( json, "    ", "maxRequestTime", metrics != null ? metrics.getMaxRequestTime() : -1, true );
+			appendLongField( json, "    ", "minRequestTime", metrics != null ? metrics.getMinRequestTime() : -1, false );
+		} catch ( Exception e ) {
+			// MetricsHandler not available
+		}
+		json.append( "  },\n" );
+	}
+
+	/**
+	 * Appends websocket connection metrics to the JSON builder.
+	 */
+	private void appendWebSocketMetrics( StringBuilder json ) {
+		json.append( "  \"websocket\": {\n" );
+		try {
+			WebsocketHandler wsHandler = MiniServer.getWebsocketHandler();
+			if ( wsHandler == null ) {
+				appendLongField( json, "    ", "activeConnections", -1, true );
+				appendLongField( json, "    ", "openConnections", -1, false );
+			} else {
+				long	activeConnections	= wsHandler.getConnections().size();
+				long	openConnections		= wsHandler.getConnections().stream().filter( channel -> channel != null && channel.isOpen() ).count();
+				appendLongField( json, "    ", "activeConnections", activeConnections, true );
+				appendLongField( json, "    ", "openConnections", openConnections, false );
+			}
+		} catch ( Exception e ) {
+			appendLongField( json, "    ", "activeConnections", -1, true );
+			appendLongField( json, "    ", "openConnections", -1, false );
+		}
+		json.append( "  }\n" );
+	}
+
+	/**
+	 * Appends a long field to the JSON builder.
+	 *
+	 * @param json          The StringBuilder
+	 * @param indent        The indentation string
+	 * @param key           The JSON key
+	 * @param value         The long value
+	 * @param trailingComma Whether to append a comma
+	 */
+	private void appendLongField( StringBuilder json, String indent, String key, long value,
+	    boolean trailingComma ) {
+		json.append( indent ).append( "\"" ).append( key ).append( "\": " ).append( value );
+		if ( trailingComma ) {
+			json.append( "," );
+		}
+		json.append( "\n" );
+	}
+
+	/**
+	 * Appends an int field to the JSON builder.
+	 *
+	 * @param json          The StringBuilder
+	 * @param indent        The indentation string
+	 * @param key           The JSON key
+	 * @param value         The int value
+	 * @param trailingComma Whether to append a comma
+	 */
+	private void appendIntField( StringBuilder json, String indent, String key, int value,
+	    boolean trailingComma ) {
+		json.append( indent ).append( "\"" ).append( key ).append( "\": " ).append( value );
+		if ( trailingComma ) {
+			json.append( "," );
+		}
+		json.append( "\n" );
 	}
 
 	/**

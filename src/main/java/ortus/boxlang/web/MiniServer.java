@@ -31,9 +31,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.xnio.Option;
 import org.xnio.Options;
+import org.xnio.XnioWorker;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
@@ -41,6 +43,7 @@ import io.undertow.UndertowOptions;
 import io.undertow.predicate.Predicates;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.MetricsHandler;
 import io.undertow.server.handlers.encoding.ContentEncodingRepository;
 import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.server.handlers.encoding.GzipEncodingProvider;
@@ -120,6 +123,21 @@ public class MiniServer {
 	 * ThreadLocal to store the current HttpServerExchange.
 	 */
 	private static final ThreadLocal<HttpServerExchange>	currentExchange			= new ThreadLocal<>();
+
+	/**
+	 * The built Undertow server instance. Set during startServer(); cleared on shutdown.
+	 */
+	private static volatile Undertow						serverInstance;
+
+	/**
+	 * Count of currently in-flight requests across all handlers.
+	 */
+	private static final AtomicLong							activeRequests			= new AtomicLong( 0 );
+
+	/**
+	 * Undertow MetricsHandler wrapping the entire handler chain.
+	 */
+	private static volatile MetricsHandler					metricsHandler;
 
 	/**
 	 * Main method to start the BoxLang MiniServer.
@@ -265,6 +283,7 @@ public class MiniServer {
 
 		// Build the web server
 		Undertow BLServer = buildWebServer( absWebRoot, config );
+		serverInstance = BLServer;
 
 		// Add shutdown hook for graceful shutdown
 		addShutdownHook( BLServer, runtime );
@@ -372,6 +391,43 @@ public class MiniServer {
 	}
 
 	/**
+	 * Get the Undertow server instance.
+	 *
+	 * @return The Undertow server, or null if not yet started.
+	 */
+	public static Undertow getServerInstance() {
+		return serverInstance;
+	}
+
+	/**
+	 * Get the XnioWorker for the Undertow server.
+	 *
+	 * @return The XnioWorker, or null if the server is not started.
+	 */
+	public static XnioWorker getWorker() {
+		Undertow server = serverInstance;
+		return server != null ? server.getWorker() : null;
+	}
+
+	/**
+	 * Get the current count of in-flight requests.
+	 *
+	 * @return The number of requests currently being processed.
+	 */
+	public static long getActiveRequests() {
+		return activeRequests.get();
+	}
+
+	/**
+	 * Get the MetricsHandler that wraps the entire handler chain.
+	 *
+	 * @return The MetricsHandler, or null if the server is not started.
+	 */
+	public static MetricsHandler getMetricsHandler() {
+		return metricsHandler;
+	}
+
+	/**
 	 * --------------------------------------------------------------------
 	 * Private Helpers
 	 * --------------------------------------------------------------------
@@ -417,6 +473,10 @@ public class MiniServer {
 
 		// Create the HTTP handler chain with encoding and welcome file handling
 		HttpHandler httpHandler = createHandlerChain( webRootPath, config, validatedAliases );
+
+		// Wrap the entire chain with a MetricsHandler for request-level timing/error counts
+		metricsHandler	= new MetricsHandler( httpHandler );
+		httpHandler		= metricsHandler;
 
 		// Apply undertow/worker/socket options from config (defaults + any user overrides)
 		applyUndertowOptions( builder, config );
@@ -577,6 +637,7 @@ public class MiniServer {
 
 			@Override
 			public void handleRequest( final HttpServerExchange exchange ) throws Exception {
+				activeRequests.incrementAndGet();
 				try {
 					// This allows the exchange to be available to the thread.
 					MiniServer.setCurrentExchange( exchange );
@@ -584,6 +645,7 @@ public class MiniServer {
 				} finally {
 					// Clean up after
 					MiniServer.setCurrentExchange( null );
+					activeRequests.decrementAndGet();
 				}
 			}
 

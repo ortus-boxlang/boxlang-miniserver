@@ -124,6 +124,8 @@ public class MiniServerConfig {
 
 	static {
 		Map<String, Object> undertow = new LinkedHashMap<>();
+		// Required for connector statistics (listener request/bytes/errors) exposed by health checks.
+		undertow.put( "ENABLE_STATISTICS", true );
 		// Replace Undertow's 2 MB default with 25 MB for general HTTP entity bodies
 		undertow.put( "MAX_ENTITY_SIZE", 25L * 1024L * 1024L );
 		// Replace Undertow's 2 MB multipart default with 100 MB for file uploads.
