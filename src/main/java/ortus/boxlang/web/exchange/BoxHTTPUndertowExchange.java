@@ -194,7 +194,7 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			ensureResponseContentType();
 
 			// Update this in case the content type has changed
-			writer.setWhitespaceCompressionEnabled( context.isWhitespaceCompressionEnabled() );
+			writer.setWhitespaceCompressionEnabled( context == null ? false : context.isWhitespaceCompressionEnabled() );
 			writer.flush();
 			getResponseChannel().flush();
 		} catch ( IOException e ) {
@@ -451,6 +451,9 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public String getRequestPathTranslated() {
+		if ( getWebContext() == null ) {
+			return getRequestURI();
+		}
 		return Path.of( getWebContext().getWebRoot(), getRequestURI() ).toString();
 	}
 
@@ -587,7 +590,8 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	public PrintWriter getResponseWriter() {
 		if ( writer == null ) {
 			OutputStream outputStream = new BlockingBufferedOutputStream( getResponseChannel() );
-			writer = new WhitespaceManagingPrintWriter( new PrintWriter( outputStream, false ), context.isWhitespaceCompressionEnabled() );
+			writer = new WhitespaceManagingPrintWriter( new PrintWriter( outputStream, false ),
+			    context == null ? false : context.isWhitespaceCompressionEnabled() );
 		}
 		return writer;
 	}
@@ -642,7 +646,9 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public void resetResponseBuffer() {
-		context.clearBuffer();
+		if ( context != null ) {
+			context.clearBuffer();
+		}
 	}
 
 	@Override
