@@ -63,7 +63,7 @@ public class FrameworkRewritesBuilder implements HandlerBuilder {
 			@Override
 			public HttpHandler wrap( HttpHandler toWrap ) {
 				List<PredicatedHandler> ph = PredicatedHandlersParser.parse(
-				    "not regex('^/(ws|\\.well-known)/.*')"
+				    "not regex('^/(ws(?:/.*)?|\\.well-known/.*)')"
 				        + "and not path(/favicon.ico)"
 				        + " and not path-suffix-nocase( '.cfm' )"
 				        + " and not path-suffix-nocase( '.cfc' )"
