@@ -44,6 +44,7 @@ import io.undertow.predicate.Predicates;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.MetricsHandler;
+import io.undertow.server.handlers.ProxyPeerAddressHandler;
 import io.undertow.server.handlers.encoding.ContentEncodingRepository;
 import io.undertow.server.handlers.encoding.EncodingHandler;
 import io.undertow.server.handlers.encoding.GzipEncodingProvider;
@@ -269,6 +270,7 @@ public class MiniServer {
 		System.out.println( "  - Server Home: " + config.serverHome );
 		System.out.println( "  - Health Check: " + config.healthCheck );
 		System.out.println( "  - Health Check Secure: " + config.healthCheckSecure );
+		System.out.println( "  - Use Proxy Headers: " + config.useProxyHeaders );
 		System.out.println( "+ Starting BoxLang Runtime..." );
 
 		// Startup the runtime
@@ -546,7 +548,14 @@ public class MiniServer {
 		}
 
 		// Wrap with exchange setter for WebSocket integration
-		return createExchangeSetterHandler( httpHandler );
+		httpHandler = createExchangeSetterHandler( httpHandler );
+
+		if ( config.useProxyHeaders ) {
+			System.out.println( "+ Proxy peer address handling enabled" );
+			httpHandler = new ProxyPeerAddressHandler( httpHandler );
+		}
+
+		return httpHandler;
 	}
 
 	/**
@@ -756,6 +765,7 @@ public class MiniServer {
 		System.out.println( "    \"rewriteFileName\": \"index.bxm\"," );
 		System.out.println( "    \"healthCheck\": true," );
 		System.out.println( "    \"healthCheckSecure\": false," );
+		System.out.println( "    \"useProxyHeaders\": false," );
 		System.out.println( "    \"envFile\": \".env.local\"," );
 		System.out.println( "    \"passPredicate\": \"regex( '^(/.+?\\\\.cfml|/.+?\\\\.cf[cms]|.+?\\\\.bx[ms]{0,1})(/.*)?$' )\"," );
 		System.out.println( "    \"warmupUrl\": \"/index.bxm\"," );
@@ -774,6 +784,7 @@ public class MiniServer {
 		System.out.println( "  -r, --rewrites [FILE]   🔀 Enable URL rewrites (default file: index.bxm)" );
 		System.out.println( "      --health-check      ❤️  Enable health check endpoints (/health, /health/ready, /health/live)" );
 		System.out.println( "      --health-check-secure 🔒 Restrict detailed health info to localhost only" );
+		System.out.println( "      --use-proxy-headers 🛡️  Use X-Forwarded-* headers supplied by a trusted proxy" );
 		System.out.println( "      --warmup-url <URL>  🔥 URL to call after server starts (can be repeated for multiple URLs)" );
 		System.out.println( "      --pass-predicate <EXPR> 🎯 Undertow predicate for BoxLang request routing (overrides default file-extension matching)" );
 		System.out.println();
@@ -788,6 +799,7 @@ public class MiniServer {
 		System.out.println( "  BOXLANG_WEBROOT         📁 Path to the webroot directory" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK    ❤️  Enable health check endpoints (true/false)" );
 		System.out.println( "  BOXLANG_HEALTH_CHECK_SECURE 🔒 Restrict detailed health info to localhost only (true/false)" );
+		System.out.println( "  BOXLANG_USE_PROXY_HEADERS 🛡️  Use X-Forwarded-* headers from a trusted proxy (true/false)" );
 		System.out.println( "  BOXLANG_PASS_PREDICATE  🎯 Undertow predicate for BoxLang request routing" );
 		System.out.println( "  JAVA_OPTS               ⚙️  Java Virtual Machine options and system properties" );
 		System.out.println();

@@ -119,6 +119,11 @@ public class MiniServerConfigTest {
 	}
 
 	@Test
+	void testNewInstance_useProxyHeaders_defaultsToFalse() {
+		assertThat( new MiniServerConfig().useProxyHeaders ).isFalse();
+	}
+
+	@Test
 	void testNewInstance_warmupUrls_defaultsToEmptyList() {
 		assertThat( new MiniServerConfig().warmupUrls ).isEmpty();
 	}
@@ -177,6 +182,16 @@ public class MiniServerConfigTest {
 		assertThat( config.host ).isEqualTo( "127.0.0.1" );
 		assertThat( config.debug ).isTrue();
 		assertThat( config.rewrites ).isTrue();
+	}
+
+	@Test
+	void testApplyJson_useProxyHeaders_parsed() throws IOException {
+		Path				tmp		= writeTempJson( "{ \"useProxyHeaders\": true }" );
+
+		MiniServerConfig	config	= new MiniServerConfig();
+		config.applyJson( tmp.toString() );
+
+		assertThat( config.useProxyHeaders ).isTrue();
 	}
 
 	@Test
@@ -303,6 +318,12 @@ public class MiniServerConfigTest {
 	void testFromArgs_rewrites_flag() {
 		MiniServerConfig config = MiniServerConfig.fromArgs( new String[] { "--rewrites" } );
 		assertThat( config.rewrites ).isTrue();
+	}
+
+	@Test
+	void testFromArgs_useProxyHeaders_flag() {
+		MiniServerConfig config = MiniServerConfig.fromArgs( new String[] { "--use-proxy-headers" } );
+		assertThat( config.useProxyHeaders ).isTrue();
 	}
 
 	@Test
