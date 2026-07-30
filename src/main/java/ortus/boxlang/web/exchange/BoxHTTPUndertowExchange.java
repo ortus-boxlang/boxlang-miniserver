@@ -49,6 +49,7 @@ import io.undertow.server.handlers.Cookie;
 import io.undertow.server.handlers.CookieImpl;
 import io.undertow.server.handlers.form.FormData;
 import io.undertow.server.handlers.form.FormDataParser;
+import io.undertow.server.handlers.form.FormEncodedDataDefinition;
 import io.undertow.server.handlers.form.FormParserFactory;
 import io.undertow.server.handlers.form.MultiPartParserDefinition;
 import io.undertow.util.HeaderMap;
@@ -369,7 +370,12 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 		// Instead of manually creating them, I'll just look for the one we care about, and tweak it.
 		// The multi-part parser will only actually be used if the request content type is multipart/form-data
 		for ( var parser : formParserBuilder.getParsers() ) {
+			if ( parser instanceof FormEncodedDataDefinition fed ) {
+				fed.setDefaultEncoding( "UTF-8" );
+			}
+
 			if ( parser instanceof MultiPartParserDefinition mppd ) {
+				mppd.setDefaultEncoding( "UTF-8" );
 				// Store all files on disk
 				mppd.setFileSizeThreshold( 0 );
 				// Never store input fields on disk
