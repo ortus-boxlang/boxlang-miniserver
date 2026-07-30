@@ -170,6 +170,9 @@ public class MiniServerConfig {
 	/** Restrict detailed health info to localhost only. Default: false */
 	public Boolean				healthCheckSecure	= false;
 
+	/** Use proxy-provided client address headers. Default: false */
+	public Boolean				useProxyHeaders		= false;
+
 	/** Path to a .env file to load. Null means auto-detect from webroot. */
 	public String				envFile				= null;
 
@@ -246,6 +249,7 @@ public class MiniServerConfig {
 		config.rewriteFileName		= envVars.getOrDefault( "BOXLANG_REWRITE_FILE", DEFAULT_REWRITE_FILE );
 		config.healthCheck			= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK", "false" ) );
 		config.healthCheckSecure	= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_HEALTH_CHECK_SECURE", "false" ) );
+		config.useProxyHeaders		= Boolean.parseBoolean( envVars.getOrDefault( "BOXLANG_USE_PROXY_HEADERS", "false" ) );
 		config.passPredicate		= envVars.getOrDefault( "BOXLANG_PASS_PREDICATE", DEFAULT_PASS_PREDICATE );
 
 		// 2. JSON configuration file
@@ -324,6 +328,8 @@ public class MiniServerConfig {
 				config.healthCheck = true;
 			} else if ( arg.equalsIgnoreCase( "--health-check-secure" ) ) {
 				config.healthCheckSecure = true;
+			} else if ( arg.equalsIgnoreCase( "--use-proxy-headers" ) ) {
+				config.useProxyHeaders = true;
 			} else if ( arg.equalsIgnoreCase( "--pass-predicate" ) ) {
 				if ( i + 1 >= args.length ) {
 					throw new IllegalArgumentException( "Pass predicate argument requires a value" );
@@ -413,6 +419,9 @@ public class MiniServerConfig {
 			}
 			if ( jsonConfig.containsKey( "healthCheckSecure" ) && jsonConfig.get( "healthCheckSecure" ) != null ) {
 				healthCheckSecure = BooleanCaster.cast( jsonConfig.get( "healthCheckSecure" ) );
+			}
+			if ( jsonConfig.containsKey( "useProxyHeaders" ) && jsonConfig.get( "useProxyHeaders" ) != null ) {
+				useProxyHeaders = BooleanCaster.cast( jsonConfig.get( "useProxyHeaders" ) );
 			}
 			if ( jsonConfig.containsKey( "envFile" ) && jsonConfig.get( "envFile" ) != null ) {
 				envFile = StringCaster.cast( jsonConfig.get( "envFile" ) );

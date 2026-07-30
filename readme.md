@@ -43,6 +43,7 @@ Example `miniserver.json`:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": false,
+  "useProxyHeaders": false,
   "envFile": null,
   "passPredicate": null,
   "undertowOptions": {
@@ -64,6 +65,7 @@ Example `miniserver.json`:
 - `rewriteFileName` (string) - Rewrite target file (default: "index.bxm")
 - `healthCheck` (boolean) - Enable health check endpoints
 - `healthCheckSecure` (boolean) - Restrict detailed health info to localhost only
+- `useProxyHeaders` (boolean) - Use `X-Forwarded-*` headers from a trusted reverse proxy
 - `envFile` (string) - Path to custom environment file
 - `passPredicate` (string) - Undertow predicate expression for BoxLang request routing (default: matches `.bxm`, `.bxs`, `.bx`, `.cfm`, `.cfc`, `.cfs`, `.cfml` extensions)
 - `warmupUrl` (string) - Single URL to call after server starts

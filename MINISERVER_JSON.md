@@ -44,6 +44,7 @@ All the following options are supported in the JSON configuration file:
 | `rewriteFileName` | string | "index.bxm" | Rewrite target file |
 | `healthCheck` | boolean | false | Enable health check endpoints |
 | `healthCheckSecure` | boolean | false | Restrict detailed health info to localhost only |
+| `useProxyHeaders` | boolean | false | Use `X-Forwarded-*` headers supplied by a trusted reverse proxy |
 | `envFile` | string | null | Path to custom environment file (relative or absolute) |
 | `passPredicate` | string | *(see below)* | Undertow predicate expression that determines which requests are routed to BoxLang |
 | `warmupUrl` | string | null | Single URL to call after server starts (for application warmup) |
@@ -88,6 +89,7 @@ All the following options are supported in the JSON configuration file:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": true,
+  "useProxyHeaders": true,
   "serverHome": "/opt/boxlang",
   "envFile": "/etc/boxlang/.env.production"
 }
@@ -107,6 +109,7 @@ All the following options are supported in the JSON configuration file:
   "rewriteFileName": "index.bxm",
   "healthCheck": true,
   "healthCheckSecure": false,
+  "useProxyHeaders": false,
   "envFile": ".env.production",
   "passPredicate": "regex( '^(/.+?\\.cfml|/.+?\\.cf[cms]|.+?\\.bx[ms]{0,1})(/.*)?$' )",
   "warmupUrl": "/index.bxm"
@@ -269,6 +272,18 @@ Keys must match constant names in [`org.xnio.Options`](https://github.com/xnio/x
 - Unknown option names emit a warning at startup and are skipped — the server still starts
 - JSON number values are coerced to the correct type (`int`, `long`, or `boolean`) as declared by Undertow/XNIO
 - Worker and socket options both reference `org.xnio.Options`; the distinction is only which builder method is called
+
+## Proxy Headers
+
+Set `useProxyHeaders` to `true` when the MiniServer is behind a **trusted** reverse proxy that supplies `X-Forwarded-*` headers. This enables Undertow's `ProxyPeerAddressHandler`, allowing the application to see the forwarded client address, host, port, and protocol.
+
+Only enable this setting when direct access to the MiniServer is restricted to trusted proxies. Otherwise, clients can send spoofed forwarded headers.
+
+| Method | Example |
+|--------|---------|
+| `miniserver.json` | `"useProxyHeaders": true` |
+| CLI argument | `--use-proxy-headers` |
+| Environment variable | `BOXLANG_USE_PROXY_HEADERS=true` |
 
 ## Configuration Priority
 
