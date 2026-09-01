@@ -30,13 +30,16 @@ plugins {
 ext {
 	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
 	branch = System.getenv( 'BRANCH' ) ?: 'development'
+	isHotfixBranch = branch == 'hotfix' || branch.startsWith( 'hotfix/' ) || System.getenv( 'GITHUB_REF' )?.startsWith( 'refs/heads/hotfix/' )
 }
 
-if (branch == 'development') {
+if (branch == 'development' && !isHotfixBranch) {
     // If the branch is 'development', ensure the version ends with '-snapshot'
     // This replaces any existing prerelease identifier with '-snapshot'
     version = version.contains('-') ? version.replaceAll(/-.*/, '-snapshot') : "${version}-snapshot".toString()
 	boxlangVersion = boxlangVersion.contains('-') ? boxlangVersion.replaceAll(/-.*/, '-snapshot') : "${boxlangVersion}-snapshot".toString()
+} else if (isHotfixBranch) {
+	boxlangVersion = boxlangVersion.replaceAll(/-snapshot$/, '')
 }
 
 repositories {
