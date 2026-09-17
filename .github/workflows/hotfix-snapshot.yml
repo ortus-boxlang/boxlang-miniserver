@@ -1,0 +1,42 @@
+name: Hotfix Snapshot
+
+# Manually-triggered build + publish-a-snapshot-to-S3-only workflow, runnable only
+# from a hotfix/* branch. Reuses the release pipeline's build + S3 upload mechanics
+# while explicitly skipping everything that implies a "real" release: no version
+# bump, no git tag, no GitHub Release, no GitHub Packages publish, no Maven Central
+# publish, no changelog commit, and no clobbering development's evergreen S3 alias.
+#
+# Tests are intentionally skipped here - the hotfix branch's push-triggered CI
+# (hotfix.yml) already validated the commit before this is run.
+on:
+  workflow_dispatch:
+
+jobs:
+  #############################################
+  # Guard: only allow this to run from a hotfix/* branch
+  #############################################
+  guard:
+    name: Ensure Hotfix Branch
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Verify branch is a hotfix branch
+        run: |
+          if [[ "${{ github.ref_name }}" != hotfix/* ]]; then
+            echo "::error::hotfix-snapshot.yml can only be run from a hotfix/* branch. Current branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+
+  #############################################
+  # Build & Publish Snapshot to S3 Only
+  #############################################
+  build:
+    name: Build & Publish Snapshot to S3
+    needs: [guard]
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    permissions:
+      contents: read
+    with:
+      snapshot: true
+      skipEvergreen: true
