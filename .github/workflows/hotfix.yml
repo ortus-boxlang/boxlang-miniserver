@@ -1,17 +1,16 @@
-name: Pull Requests
+name: Hotfix Branch CI
 
+# Gives hotfix/* branches the same push-triggered feedback (tests + formatting)
+# that other feature branches get via pr.yml, so a hotfix can be validated
+# before it's merged or published via hotfix-snapshot.yml.
 on:
   push:
-    branches-ignore:
-      - "main"
-      - "master"
-      - "development"
-      - "releases/v*"
-      - "hotfix/**"
-  pull_request:
     branches:
-      - "releases/v*"
-      - development
+      - "hotfix/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
