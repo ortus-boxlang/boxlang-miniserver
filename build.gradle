@@ -312,6 +312,7 @@ task createDistributionFile( type: Zip ){
 
 	    file( "build/evergreen" ).mkdirs()
 	    if( branch == 'development' ){
+			Files.copy( file( "build/resources/main/META-INF/boxlang-miniserver/version.properties" ).toPath(), file( "build/evergreen/version-snapshot.properties" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        // Copy checksums
@@ -320,6 +321,7 @@ task createDistributionFile( type: Zip ){
 			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar.sha-256" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar.sha-256" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 			Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar.md5" ).toPath(), file( "build/evergreen/boxlang-miniserver-snapshot.jar.md5" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	    } else {
+			Files.copy( file( "build/resources/main/META-INF/boxlang-miniserver/version.properties" ).toPath(), file( "build/evergreen/version-latest.properties" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.zip" ).toPath(), file( "build/evergreen/boxlang-miniserver-latest.zip" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        Files.copy( file( "build/distributions/boxlang-miniserver-${version}.jar" ).toPath(), file( "build/evergreen/boxlang-miniserver-latest.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
 	        // Copy checksums
