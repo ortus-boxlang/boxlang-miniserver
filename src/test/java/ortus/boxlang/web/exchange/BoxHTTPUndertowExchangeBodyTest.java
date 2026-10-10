@@ -41,8 +41,8 @@ import io.undertow.server.HttpServerExchange;
  */
 public class BoxHTTPUndertowExchangeBodyTest {
 
-	private Undertow					server;
-	private int							port;
+	private Undertow						server;
+	private int								port;
 	private final AtomicReference<Object>	body		= new AtomicReference<>();
 	private final AtomicReference<Object>	secondBody	= new AtomicReference<>();
 
@@ -89,10 +89,10 @@ public class BoxHTTPUndertowExchangeBodyTest {
 				out.write( pieces[ i ] );
 				out.flush();
 			}
-			InputStream			in		= socket.getInputStream();
+			InputStream				in			= socket.getInputStream();
 			ByteArrayOutputStream	response	= new ByteArrayOutputStream();
-			byte[]				buf		= new byte[ 1024 ];
-			int					read;
+			byte[]					buf			= new byte[ 1024 ];
+			int						read;
 			try {
 				while ( ( read = in.read( buf ) ) != -1 ) {
 					response.write( buf, 0, read );
@@ -114,7 +114,8 @@ public class BoxHTTPUndertowExchangeBodyTest {
 	void testGetRequestBody_lateBodyWithContentLength_returnsFullBody() throws Exception {
 		String payload = "{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}";
 		send( 150,
-		    ascii( "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: " + payload.length() + "\r\nConnection: close\r\n\r\n" ),
+		    ascii( "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: " + payload.length()
+		        + "\r\nConnection: close\r\n\r\n" ),
 		    ascii( payload ) );
 		assertThat( body.get() ).isEqualTo( payload );
 	}
