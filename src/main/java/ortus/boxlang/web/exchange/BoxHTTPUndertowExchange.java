@@ -70,12 +70,12 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * Request attributes
 	 */
-	private Map<String, Object>		attributes	= new HashMap<>();
+	private Map<String, Object>		attributes			= new HashMap<>();
 
 	/**
 	 * Undertow response channel
 	 */
-	protected StreamSinkChannel		channel		= null;
+	protected StreamSinkChannel		channel				= null;
 
 	/**
 	 * PrintWriter for the response that wraps the channel
@@ -95,17 +95,22 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 	/**
 	 * The list of file uploads
 	 */
-	List<FileUpload>				fileUploads	= new ArrayList<>();
+	List<FileUpload>				fileUploads			= new ArrayList<>();
+
+	/**
+	 * Whether the request body was already read through getRequestBody()
+	 */
+	private boolean					requestBodyConsumed	= false;
 
 	/**
 	 * Cache of the form fields
 	 */
-	Map<String, String[]>			formFields	= null;
+	Map<String, String[]>			formFields			= null;
 
 	/**
 	 * Cache of the url params
 	 */
-	Map<String, String[]>			urlParams	= null;
+	Map<String, String[]>			urlParams			= null;
 
 	/**
 	 * Create a new BoxLang HTTP exchange for Undertow
@@ -475,14 +480,19 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 
 	@Override
 	public Object getRequestBody() {
+		// The stream was already read through this method, nothing is left in it
+		if ( requestBodyConsumed ) {
+			return "";
+		}
+		// The request announces no body, so there is nothing to wait for (BL-1856).
+		// InputStream.available() must not decide this: it is also 0 while the body is still in flight (BL-2744).
+		if ( !hasRequestBody() ) {
+			return "";
+		}
 		try {
+			// Undertow's blocking stream waits for the data to arrive
 			InputStream inputStream = exchange.getInputStream();
-			// If this stream has already been read, return an empty string
-			// TODO: Figure out how to intercept the Undertow input stream so we can access
-			// it even after the form scope has been processed.
-			if ( inputStream.available() == 0 ) {
-				return "";
-			}
+			requestBodyConsumed = true;
 			if ( isTextBasedContentType() ) {
 				try ( Scanner scanner = new java.util.Scanner( inputStream ).useDelimiter( "\\A" ) ) {
 					return scanner.hasNext() ? scanner.next() : "";
@@ -501,6 +511,19 @@ public class BoxHTTPUndertowExchange implements IBoxHTTPExchange {
 			// e.printStackTrace();
 			return "";
 		}
+	}
+
+	/**
+	 * Whether the request announces a body: a Content-Length greater than 0 or chunked transfer encoding.
+	 *
+	 * @return true if a body is expected
+	 */
+	private boolean hasRequestBody() {
+		String transferEncoding = getRequestHeader( Headers.TRANSFER_ENCODING );
+		if ( transferEncoding != null && transferEncoding.toLowerCase( Locale.ROOT ).contains( "chunked" ) ) {
+			return true;
+		}
+		return getRequestContentLength() > 0;
 	}
 
 	@Override
