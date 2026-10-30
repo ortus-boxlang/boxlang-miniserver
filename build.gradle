@@ -22,6 +22,8 @@ plugins {
 	id 'maven-publish'
 	id 'signing'
 	id 'com.gradleup.nmcp.aggregation' version "1.6.2"
+	// CycloneDX SBOM generation
+	id "org.cyclonedx.bom" version "2.3.1"
 }
 
 /**
@@ -282,11 +284,27 @@ tasks.shadowDistTar.setEnabled( false )
 tasks.shadowDistZip.setEnabled( false )
 
 /**
+ * CycloneDX SBOM
+ * Generated from the resolved runtime dependency graph, NOT from the shaded jar, because shading strips
+ * META-INF/maven and scanners cannot see the bundled dependencies. Test dependencies are excluded.
+ * Output: build/sbom/boxlang-miniserver-{version}.cdx.json
+ */
+tasks.named( "cyclonedxBom" ) {
+	includeConfigs = [ "runtimeClasspath" ]
+	projectType = "application"
+	schemaVersion = "1.6"
+	outputFormat = "json"
+	includeLicenseText = false
+	destination = layout.buildDirectory.dir( "sbom" ).get().asFile
+	outputName = "boxlang-miniserver-${version}.cdx"
+}
+
+/**
  * This is necessary to create a single level instead of what shadow does
  */
 import java.nio.file.Files
 task createDistributionFile( type: Zip ){
-	dependsOn startShadowScripts
+	dependsOn startShadowScripts, cyclonedxBom
     doFirst {
         delete archiveFile
     }
@@ -309,6 +327,10 @@ task createDistributionFile( type: Zip ){
 		}
 
 	    Files.copy( file( "build/libs/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), file( "build/distributions/boxlang-miniserver-${version}-javadoc.jar" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+
+		// SBOM ships beside the binaries, with a boxlang-miniserver-{version}.cdx.json.sha256 checksum
+		Files.copy( file( "build/sbom/boxlang-miniserver-${version}.cdx.json" ).toPath(), file( "build/distributions/boxlang-miniserver-${version}.cdx.json" ).toPath(), StandardCopyOption.REPLACE_EXISTING )
+		generateChecksum( file( "build/distributions/boxlang-miniserver-${version}.cdx.json" ), 'SHA-256', 'sha256' )
 
 	    file( "build/evergreen" ).mkdirs()
 	    if( branch == 'development' ){
@@ -342,15 +364,16 @@ build.finalizedBy( createDistributionFile )
 
  * @param file The file to generate the checksum for
  * @param algorithm The algorithm to use (e.g., "SHA-256", "MD5")
+ * @param extension Optional checksum file extension, defaults to the lowercased algorithm name
  */
-def generateChecksum( File file, String algorithm ) {
+def generateChecksum( File file, String algorithm, String extension = null ) {
 	def digest = java.security.MessageDigest.getInstance( algorithm )
 	file.eachByte( 4096 ) { bytes, size ->
 		digest.update( bytes, 0, size )
 	}
 	def checksum = digest.digest().collect { String.format( '%02x', it ) }.join()
 
-	def checksumFile = new File( file.parent, "${file.name}.${algorithm.toLowerCase()}" )
+	def checksumFile = new File( file.parent, "${file.name}.${extension ?: algorithm.toLowerCase()}" )
 	checksumFile.text = "${checksum}  ${file.name}\n"
 }
 
